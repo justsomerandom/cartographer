@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon } from "./ui";
+
 export function RemoveProjectButton() {
   return (
     <button
@@ -9,9 +11,10 @@ export function RemoveProjectButton() {
           event.preventDefault();
         }
       }}
-      className="min-h-9 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+      className="inline-flex min-h-8 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border)] px-3 text-sm font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
     >
-      Remove saved project
+      <Icon name="trash" className="size-4" />
+      Remove
     </button>
   );
 }

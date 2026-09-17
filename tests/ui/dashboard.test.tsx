@@ -3,7 +3,7 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { HotspotsSection, ProjectsHome, MissingProjectView } from "../../src/components/dashboard/sections";
-import { DataTable, MetricStrip, StatusBadge } from "../../src/components/dashboard/ui";
+import { DataTable, MetricStrip, StatusBadge, VisualizationPanel } from "../../src/components/dashboard/ui";
 
 test("dashboard empty state explains saved projects", () => {
   const html = renderToStaticMarkup(<ProjectsHome savedCount={0} />);
@@ -26,13 +26,27 @@ test("shared dashboard primitives render accessible tabular and status content",
     <section>
       <StatusBadge tone="attention">Modified</StatusBadge>
       <MetricStrip metrics={[{ label: "Cycles", value: "2", tone: "attention" }]} />
-      <DataTable headers={["Name", "Count"]} rows={[["module.ts", "3"]]} emptyText="No rows" />
+      <DataTable headers={["Name", "Count"]} rows={[["module.ts", "3"]]} emptyText="No rows" numericColumns={[1]} selectedRowIndex={0} />
     </section>,
   );
 
   assert.match(html, /Modified/);
   assert.match(html, /Cycles/);
   assert.match(html, /module.ts/);
+  assert.match(html, /aria-selected="true"/);
+});
+
+test("visualization panel supports empty and loading states", () => {
+  const emptyHtml = renderToStaticMarkup(
+    <VisualizationPanel title="Architecture graph" description="Reserved graph space.">
+      Graph canvas planned.
+    </VisualizationPanel>,
+  );
+  const loadingHtml = renderToStaticMarkup(<VisualizationPanel title="Timeline" description="Reserved timeline space." state="loading" />);
+
+  assert.match(emptyHtml, /Architecture graph/);
+  assert.match(emptyHtml, /Graph canvas planned/);
+  assert.match(loadingHtml, /aria-label="Loading"/);
 });
 
 test("hotspots section renders ranked hotspot explanations", () => {

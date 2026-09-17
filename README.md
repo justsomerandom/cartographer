@@ -26,6 +26,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Analyze source-level module/import relationships for TypeScript, JavaScript, Rust, Go, and Python.
 - Rank engineering hotspots from Git churn, recent activity, structural centrality, fan-out, source size, marker density, cycle membership, contributor spread, and test-file naming signals.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
+- Use a documented dashboard design system with semantic colors, compact density, and reserved visualization regions.
 - Preserve scan results as structured TypeScript data.
 
 ## Navigation Model
@@ -50,6 +51,8 @@ Major sections are route-addressable:
 ```
 
 The Overview is intentionally selective. Detailed tables live in the dedicated section pages so the primary view stays scannable.
+
+The visual system is documented in [`docs/design-system.md`](docs/design-system.md). Planned chart and graph regions are documented in [`docs/visualization-roadmap.md`](docs/visualization-roadmap.md).
 
 ## Saved Projects
 
