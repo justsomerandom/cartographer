@@ -22,6 +22,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Detect common languages from extensions and well-known filenames.
 - Read Git status and history with the local Git CLI when available.
 - Detect README, manifests, Docker files, CI, tests, environment examples, and licenses.
+- Analyze declared project manifests for Node.js, Rust, Go, and Python dependencies.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
 - Preserve scan results as structured TypeScript data.
 
@@ -45,13 +46,37 @@ The `data/` directory is ignored by Git. Saved projects are references to reposi
 
 If a saved path is moved or deleted, Cartographer keeps the saved entry, marks it as unavailable, and lets you remove it manually.
 
+## Dependency Intelligence
+
+Cartographer analyzes dependency data from declared manifests only. It does not install packages, run package managers, contact registries, or resolve transitive dependency graphs.
+
+Supported manifest formats:
+
+- Node.js: `package.json`
+- Rust: `Cargo.toml`
+- Go: `go.mod`
+- Python: `pyproject.toml`, `requirements.txt`
+
+Current dependency intelligence includes:
+
+- multiple detected projects in one repository
+- direct dependency counts grouped by ecosystem and category
+- Node scripts and package metadata
+- Node package manager hints from `packageManager` and lockfiles
+- Cargo package metadata, workspace members, features, and table-form dependencies
+- Go module, Go version, toolchain, require, replace, and exclude declarations
+- Python PEP 621 dependencies, optional dependency groups, Poetry dependency groups, and basic requirements files
+- declared technology detection such as Next.js, React, Vite, Tokio, Axum, Gin, FastAPI, Pytest, and related tools
+- repeated dependencies across manifests
+- differing declared version constraints without claiming compatibility or incompatibility
+
 ## Planned Features
 
 - Add or select local repositories.
 - Repository metadata display.
 - File-tree visualization.
 - Language statistics.
-- Dependency analysis.
+- Source-level dependency and import analysis.
 - Import and module graph.
 - Git history and contributor information.
 - Commit activity and file churn.
@@ -69,7 +94,7 @@ The architecture separates UI features from local repository analysis. React com
 analyzeRepository(path: string): Promise<RepositoryAnalysis>
 ```
 
-Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, and marker detection.
+Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, manifest dependency analysis, and marker detection.
 
 ```mermaid
 flowchart LR
@@ -77,6 +102,7 @@ flowchart LR
     App --> Analysis[Analysis Pipeline]
     Analysis --> Git[Git Metadata]
     Analysis --> Files[File System Scanner]
+    Analysis --> Deps[Manifest Dependencies]
     Analysis --> Parsers[Parsers / Tree-sitter - planned]
     Analysis --> Graphs[Dependency Graph Model]
 ```
@@ -104,6 +130,8 @@ flowchart LR
 - Next.js - planned application framework.
 - Node.js - planned runtime for local repository analysis.
 - Git CLI - repository metadata source.
+- better-sqlite3 - local saved-project persistence.
+- smol-toml - static TOML parsing for Cargo and Python manifests.
 - Tree-sitter - planned source parsing where useful.
 - Graph visualization library - planned later.
 - SQLite - local saved-project references.
@@ -141,7 +169,7 @@ npm run build
 
 ## Read-Only Guarantee
 
-Cartographer is read-only with respect to analyzed repositories. It does not write files, install dependencies, format code, check out branches, alter Git state, or otherwise mutate the repository being inspected. It only reads filesystem metadata, text content within size safeguards, and Git CLI output.
+Cartographer is read-only with respect to analyzed repositories. It does not write files, install dependencies, format code, check out branches, alter Git state, run package managers, or otherwise mutate the repository being inspected. It only reads filesystem metadata, text content within size safeguards, Git CLI output, and declared manifest files.
 
 The saved-projects feature writes only to Cartographer's own local SQLite database under `data/`. It never writes inside analyzed repositories.
 
@@ -151,9 +179,10 @@ The test suite creates and removes temporary fixture repositories under the oper
 
 - Language detection is extension- and filename-based only.
 - Line counts are approximate and skip very large text files.
-- Manifest files are detected but not deeply parsed.
+- Dependency analysis is manifest-level only and does not resolve transitive dependencies.
+- Requirements parsing handles common declarations but is not a complete pip parser.
 - Saved projects do not store cached analysis snapshots.
-- Dependency graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
+- Source import graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
 - Git history depends on the local Git CLI and the repository's available history.
 
 ## Roadmap
@@ -161,7 +190,8 @@ The test suite creates and removes temporary fixture repositories under the oper
 - [ ] Define repository analysis data model.
 - [ ] Build local repository selection and metadata extraction.
 - [ ] Add file-tree and language statistics analysis.
-- [ ] Add import and dependency extraction for initial languages.
+- [x] Add manifest-level dependency extraction for initial ecosystems.
+- [ ] Add source import/module relationship extraction.
 - [ ] Add Git history and churn summaries.
 - [ ] Add TODO/FIXME, test, CI, and deployment-file discovery.
 - [ ] Add graph visualization for module relationships.

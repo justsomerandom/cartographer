@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { repositoryDashboardAction } from "@/app/actions";
 import type { SavedProjectWithStatus } from "@/types/projects";
-import type { DetectedMetadataItem, RepositoryAnalysis } from "@/types/repository";
+import type { DependencyAnalysis, DetectedMetadataItem, DetectedProject, RepositoryAnalysis } from "@/types/repository";
 
 type FormAction = (formData: FormData) => void;
 
@@ -137,6 +137,8 @@ function AnalysisResult({ analysis, formAction, isPending }: { analysis: Reposit
         />
       </DataSection>
 
+      <DependencySection dependencyAnalysis={analysis.dependencyAnalysis} />
+
       <DataSection title="Largest files">
         <Table
           headers={["Path", "Size", "Language", "Kind"]}
@@ -194,6 +196,150 @@ function AnalysisResult({ analysis, formAction, isPending }: { analysis: Reposit
         </div>
       </DataSection>
     </div>
+  );
+}
+
+function DependencySection({ dependencyAnalysis }: { dependencyAnalysis: DependencyAnalysis }) {
+  const summary = dependencyAnalysis.summary;
+
+  return (
+    <DataSection title="Projects and dependencies">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <InfoCard title="Manifest summary">
+          <KeyValue label="Projects" value={summary.projectCount.toLocaleString()} />
+          <KeyValue label="Dependencies" value={summary.totalDirectDependencies.toLocaleString()} />
+          <KeyValue label="Runtime" value={summary.runtimeDependencyCount.toLocaleString()} />
+          <KeyValue label="Dev/test" value={summary.developmentDependencyCount.toLocaleString()} />
+        </InfoCard>
+        <InfoCard title="Ecosystems">
+          {summary.ecosystemSummaries.length > 0 ? (
+            summary.ecosystemSummaries.map((ecosystem) => (
+              <KeyValue
+                key={ecosystem.ecosystem}
+                label={ecosystem.ecosystem}
+                value={`${ecosystem.projectCount.toLocaleString()} projects, ${ecosystem.dependencyCount.toLocaleString()} deps`}
+              />
+            ))
+          ) : (
+            <p className="text-sm text-slate-600">No manifests found.</p>
+          )}
+        </InfoCard>
+        <InfoCard title="Technologies">
+          {summary.technologies.length > 0 ? (
+            <BadgeList items={summary.technologies.map((technology) => technology.name)} />
+          ) : (
+            <p className="text-sm text-slate-600">No declared technologies detected.</p>
+          )}
+        </InfoCard>
+      </div>
+
+      {dependencyAnalysis.errors.length > 0 ? (
+        <section className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">Manifest notices</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+            {dependencyAnalysis.errors.map((error) => (
+              <li key={`${error.ecosystem}-${error.manifestPath}`}>
+                {error.ecosystem} {error.manifestPath}: {error.message}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Table
+          headers={["Repeated dependency", "Ecosystem", "Declarations"]}
+          rows={summary.repeatedDependencies.slice(0, 12).map((dependency) => [
+            dependency.name,
+            dependency.ecosystem,
+            dependency.declarations.map((declaration) => `${declaration.manifestPath}${declaration.version ? ` (${declaration.version})` : ""}`).join(", "),
+          ])}
+          emptyText="No dependencies are repeated across multiple manifests."
+        />
+        <Table
+          headers={["Differing declarations", "Ecosystem", "Declared constraints"]}
+          rows={summary.differingDeclaredVersions.slice(0, 12).map((dependency) => [
+            dependency.name,
+            dependency.ecosystem,
+            dependency.declarations.map((declaration) => `${declaration.manifestPath}: ${declaration.version ?? "unspecified"}`).join(", "),
+          ])}
+          emptyText="No differing declared dependency constraints found."
+        />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-4">
+        {dependencyAnalysis.projects.length > 0 ? (
+          dependencyAnalysis.projects.map((project) => <ProjectDependencyCard key={project.id} project={project} />)
+        ) : (
+          <p className="rounded border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-600">
+            No supported manifests found. Cartographer currently looks for package.json, Cargo.toml, go.mod, pyproject.toml, and requirements.txt.
+          </p>
+        )}
+      </div>
+    </DataSection>
+  );
+}
+
+function ProjectDependencyCard({ project }: { project: DetectedProject }) {
+  const dependencyRows = project.dependencies.slice(0, 20).map((dependency) => [
+    dependency.name,
+    dependency.category,
+    dependency.version ?? dependency.path ?? dependency.git ?? "Unspecified",
+  ]);
+
+  return (
+    <section className="rounded border border-slate-200 p-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-slate-950">{project.name ?? project.manifestPath}</h3>
+            <span className="rounded border border-slate-300 px-2 py-0.5 text-xs font-semibold uppercase text-slate-700">{project.ecosystem}</span>
+            {project.packageManager ? <span className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700">{project.packageManager}</span> : null}
+          </div>
+          <p className="mt-1 break-words text-sm text-slate-600">
+            {project.rootPath || "."} · {project.manifestPath}
+            {project.version ? ` · ${project.version}` : ""}
+          </p>
+          {project.technologies.length > 0 ? <BadgeList items={project.technologies.map((technology) => technology.name)} className="mt-3" /> : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <KeyValue label="Dependencies" value={project.dependencies.length.toLocaleString()} />
+          <KeyValue label="Groups" value={project.dependencyGroups.map((group) => `${group.category}: ${group.count}`).join(", ") || "None"} />
+          {project.workspace?.isWorkspace ? <KeyValue label="Workspace" value={project.workspace.members.join(", ") || "Declared"} /> : null}
+        </div>
+      </div>
+
+      {project.scripts.length > 0 ? (
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold text-slate-700">Scripts</h4>
+          <Table
+            headers={["Script", "Command"]}
+            rows={project.scripts.slice(0, 10).map((script) => [script.highlighted ? `${script.name} *` : script.name, script.command])}
+            emptyText="No scripts found."
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-4">
+        <h4 className="text-sm font-semibold text-slate-700">Dependencies</h4>
+        <Table
+          headers={["Name", "Category", "Declared"]}
+          rows={dependencyRows}
+          emptyText="No direct dependencies declared."
+        />
+        {project.dependencies.length > dependencyRows.length ? (
+          <p className="mt-2 text-sm text-slate-600">{project.dependencies.length - dependencyRows.length} more dependencies not shown.</p>
+        ) : null}
+      </div>
+
+      {project.errors.length > 0 ? (
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-amber-900">
+          {project.errors.map((error) => (
+            <li key={`${error.ecosystem}-${error.manifestPath}`}>{error.message}</li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
@@ -353,6 +499,18 @@ function MetadataList({ title, items }: { title: string; items: DetectedMetadata
         <p className="mt-2 text-sm text-slate-600">None detected.</p>
       )}
     </section>
+  );
+}
+
+function BadgeList({ items, className = "" }: { items: string[]; className?: string }) {
+  return (
+    <div className={`flex flex-wrap gap-2 ${className}`}>
+      {items.map((item) => (
+        <span key={item} className="rounded border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700">
+          {item}
+        </span>
+      ))}
+    </div>
   );
 }
 

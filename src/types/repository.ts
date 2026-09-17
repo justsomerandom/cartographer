@@ -125,12 +125,125 @@ export interface MarkerSummary {
   topFiles: MarkerFileSummary[];
 }
 
+export type DependencyEcosystem = "node" | "rust" | "go" | "python";
+
+export type DependencyCategory = "runtime" | "development" | "optional" | "peer" | "build" | "test" | "unknown";
+
+export interface Dependency {
+  name: string;
+  version?: string;
+  category: DependencyCategory;
+  ecosystem: DependencyEcosystem;
+  manifestPath: string;
+  optional?: boolean;
+  indirect?: boolean;
+  path?: string;
+  git?: string;
+  features?: string[];
+  source?: string;
+}
+
+export interface DependencyGroup {
+  category: DependencyCategory;
+  count: number;
+}
+
+export interface ProjectScript {
+  name: string;
+  command: string;
+  highlighted: boolean;
+}
+
+export interface ProjectFramework {
+  name: string;
+  ecosystem: DependencyEcosystem;
+  evidence: string[];
+}
+
+export interface WorkspaceInfo {
+  isWorkspace: boolean;
+  members: string[];
+}
+
+export interface ManifestInfo {
+  path: string;
+  ecosystem: DependencyEcosystem;
+  kind: string;
+  packageManager?: string;
+  lockfiles: string[];
+}
+
+export interface ManifestAnalysisError {
+  manifestPath: string;
+  ecosystem: DependencyEcosystem;
+  message: string;
+}
+
+export interface DetectedProject {
+  id: string;
+  rootPath: string;
+  manifestPath: string;
+  ecosystem: DependencyEcosystem;
+  name?: string;
+  version?: string;
+  private?: boolean;
+  packageType?: string;
+  packageManager?: string;
+  engines?: Record<string, string>;
+  manifest: ManifestInfo;
+  dependencies: Dependency[];
+  dependencyGroups: DependencyGroup[];
+  scripts: ProjectScript[];
+  technologies: ProjectFramework[];
+  workspace?: WorkspaceInfo;
+  details: Record<string, string | string[] | boolean | null>;
+  errors: ManifestAnalysisError[];
+}
+
+export interface EcosystemDependencySummary {
+  ecosystem: DependencyEcosystem;
+  projectCount: number;
+  dependencyCount: number;
+}
+
+export interface RepeatedDependency {
+  ecosystem: DependencyEcosystem;
+  name: string;
+  declarations: Array<{
+    manifestPath: string;
+    version?: string;
+  }>;
+}
+
+export interface DependencyAnalysisSummary {
+  projectCount: number;
+  manifestCount: number;
+  totalDirectDependencies: number;
+  runtimeDependencyCount: number;
+  developmentDependencyCount: number;
+  optionalDependencyCount: number;
+  peerDependencyCount: number;
+  buildDependencyCount: number;
+  testDependencyCount: number;
+  ecosystemSummaries: EcosystemDependencySummary[];
+  technologies: ProjectFramework[];
+  repeatedDependencies: RepeatedDependency[];
+  differingDeclaredVersions: RepeatedDependency[];
+}
+
+export interface DependencyAnalysis {
+  projects: DetectedProject[];
+  summary: DependencyAnalysisSummary;
+  errors: ManifestAnalysisError[];
+}
+
 export interface RepositoryAnalysis {
   info: RepositoryInfo;
   files: FileSummary;
   languages: LanguageSummary[];
   git: GitSummary;
   metadata: ProjectMetadata;
+  dependencyAnalysis: DependencyAnalysis;
   markers: MarkerSummary;
   errors: RepositoryAnalysisError[];
 }
