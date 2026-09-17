@@ -4,6 +4,7 @@
 /dist/
 /coverage/
 /.tmp-test/
+/data/
 tsconfig.tsbuildinfo
 .env
 .env.*

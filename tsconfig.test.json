@@ -12,6 +12,6 @@
     "tsBuildInfoFile": ".tmp-test/tsconfig.test.tsbuildinfo",
     "paths": {}
   },
-  "include": ["src/server/**/*.ts", "src/types/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/lib/**/*.ts", "src/server/**/*.ts", "src/types/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", ".next", ".tmp-test"]
 }

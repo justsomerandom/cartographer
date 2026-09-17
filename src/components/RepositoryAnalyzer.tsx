@@ -2,15 +2,17 @@
 
 import { useActionState } from "react";
 
-import { analyzeRepositoryAction, type AnalyzeRepositoryState } from "@/app/actions";
+import { repositoryDashboardAction } from "@/app/actions";
+import type { SavedProjectWithStatus } from "@/types/projects";
 import type { DetectedMetadataItem, RepositoryAnalysis } from "@/types/repository";
 
-const initialState: AnalyzeRepositoryState = {
-  repositoryPath: "",
-};
+type FormAction = (formData: FormData) => void;
 
-export function RepositoryAnalyzer() {
-  const [state, formAction, isPending] = useActionState(analyzeRepositoryAction, initialState);
+export function RepositoryAnalyzer({ initialSavedProjects }: { initialSavedProjects: SavedProjectWithStatus[] }) {
+  const [state, formAction, isPending] = useActionState(repositoryDashboardAction, {
+    repositoryPath: "",
+    savedProjects: initialSavedProjects,
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8">
@@ -24,6 +26,7 @@ export function RepositoryAnalyzer() {
         </div>
 
         <form action={formAction} className="flex flex-col gap-3 rounded border border-slate-300 bg-white p-4 shadow-sm sm:flex-row">
+          <input type="hidden" name="intent" value="analyze" />
           <label className="sr-only" htmlFor="repositoryPath">
             Repository path
           </label>
@@ -42,16 +45,48 @@ export function RepositoryAnalyzer() {
             {isPending ? "Analyzing..." : "Analyze"}
           </button>
         </form>
+
+        {state.notice ? (
+          <p
+            className={`rounded border px-4 py-3 text-sm ${
+              state.notice.kind === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-amber-50 text-amber-950"
+            }`}
+          >
+            {state.notice.message}
+          </p>
+        ) : null}
       </section>
 
-      {state.analysis ? <AnalysisResult analysis={state.analysis} /> : null}
+      <SavedProjects projects={state.savedProjects} formAction={formAction} isPending={isPending} />
+
+      {state.analysis ? <AnalysisResult analysis={state.analysis} formAction={formAction} isPending={isPending} /> : null}
     </main>
   );
 }
 
-function AnalysisResult({ analysis }: { analysis: RepositoryAnalysis }) {
+function AnalysisResult({ analysis, formAction, isPending }: { analysis: RepositoryAnalysis; formAction: FormAction; isPending: boolean }) {
+  const canSave = Boolean(analysis.info.canonicalPath);
+
   return (
     <div className="flex flex-col gap-6">
+      {canSave ? (
+        <form action={formAction} className="flex flex-col gap-3 rounded border border-slate-300 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Save this project</h2>
+            <p className="mt-1 break-words text-sm text-slate-600">{analysis.info.canonicalPath}</p>
+          </div>
+          <input type="hidden" name="intent" value="save" />
+          <input type="hidden" name="repositoryPath" value={analysis.info.canonicalPath} />
+          <button
+            type="submit"
+            disabled={isPending}
+            className="min-h-10 rounded border border-slate-300 px-4 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:text-slate-500"
+          >
+            Save project
+          </button>
+        </form>
+      ) : null}
+
       {analysis.errors.length > 0 ? (
         <section className="rounded border border-amber-300 bg-amber-50 p-4">
           <h2 className="text-lg font-semibold text-amber-950">Analysis notices</h2>
@@ -162,6 +197,86 @@ function AnalysisResult({ analysis }: { analysis: RepositoryAnalysis }) {
   );
 }
 
+function SavedProjects({ projects, formAction, isPending }: { projects: SavedProjectWithStatus[]; formAction: FormAction; isPending: boolean }) {
+  return (
+    <section className="rounded border border-slate-300 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">Saved projects</h2>
+          <p className="text-sm text-slate-600">Repository paths are stored locally and analyzed fresh when opened.</p>
+        </div>
+        <p className="text-sm font-semibold text-slate-700">{projects.length.toLocaleString()} saved</p>
+      </div>
+
+      {projects.length === 0 ? (
+        <p className="mt-4 rounded border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-600">
+          No saved projects yet. Analyze a repository, then save it for quicker access.
+        </p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="px-3 py-2 font-semibold text-slate-700">Project</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Created</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Last opened</th>
+                <th className="px-3 py-2 font-semibold text-slate-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((project) => (
+                <tr key={project.id} className="border-b border-slate-100 last:border-0">
+                  <td className="px-3 py-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-slate-950">{project.name}</span>
+                        {project.pathStatus !== "available" ? (
+                          <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                            {project.pathStatus}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="break-words text-slate-600">{project.path}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-slate-700">{formatDate(project.createdAt)}</td>
+                  <td className="px-3 py-3 text-slate-700">{project.lastOpenedAt ? formatDate(project.lastOpenedAt) : "Never"}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <form action={formAction}>
+                        <input type="hidden" name="intent" value="open" />
+                        <input type="hidden" name="projectId" value={project.id} />
+                        <button
+                          type="submit"
+                          disabled={isPending}
+                          className="min-h-9 rounded bg-slate-950 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-500"
+                        >
+                          Open
+                        </button>
+                      </form>
+                      <form action={formAction}>
+                        <input type="hidden" name="intent" value="delete" />
+                        <input type="hidden" name="projectId" value={project.id} />
+                        <button
+                          type="submit"
+                          disabled={isPending}
+                          className="min-h-9 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:text-slate-500"
+                        >
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded border border-slate-300 bg-white p-4 shadow-sm">
@@ -259,4 +374,11 @@ function formatBytes(bytes: number): string {
   const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** unitIndex;
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatDate(timestamp: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(timestamp));
 }

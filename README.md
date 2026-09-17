@@ -14,6 +14,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 ## Current v0 Capabilities
 
 - Analyze a local repository path through a Next.js App Router UI.
+- Save frequently analyzed local repository paths as projects for quick reopening.
 - Validate absolute and relative repository paths with typed errors.
 - Recursively scan files while ignoring common dependency, build, cache, IDE, and Git directories.
 - Detect text vs binary files with a practical heuristic.
@@ -23,6 +24,26 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Detect README, manifests, Docker files, CI, tests, environment examples, and licenses.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
 - Preserve scan results as structured TypeScript data.
+
+## Saved Projects
+
+Cartographer can save local repository paths as projects. A saved project stores only:
+
+- a stable project id
+- repository path
+- display name
+- created timestamp
+- last opened timestamp
+
+Saved projects are stored in a local SQLite database at:
+
+```text
+data/cartographer.db
+```
+
+The `data/` directory is ignored by Git. Saved projects are references to repositories, not analysis snapshots. When you open a saved project, Cartographer analyzes the repository fresh using the current files and Git history.
+
+If a saved path is moved or deleted, Cartographer keeps the saved entry, marks it as unavailable, and lets you remove it manually.
 
 ## Planned Features
 
@@ -85,7 +106,7 @@ flowchart LR
 - Git CLI - repository metadata source.
 - Tree-sitter - planned source parsing where useful.
 - Graph visualization library - planned later.
-- PostgreSQL - planned only if persistence becomes necessary.
+- SQLite - local saved-project references.
 
 ## Development
 
@@ -122,6 +143,8 @@ npm run build
 
 Cartographer is read-only with respect to analyzed repositories. It does not write files, install dependencies, format code, check out branches, alter Git state, or otherwise mutate the repository being inspected. It only reads filesystem metadata, text content within size safeguards, and Git CLI output.
 
+The saved-projects feature writes only to Cartographer's own local SQLite database under `data/`. It never writes inside analyzed repositories.
+
 The test suite creates and removes temporary fixture repositories under the operating system temp directory.
 
 ## Current Limitations
@@ -129,7 +152,8 @@ The test suite creates and removes temporary fixture repositories under the oper
 - Language detection is extension- and filename-based only.
 - Line counts are approximate and skip very large text files.
 - Manifest files are detected but not deeply parsed.
-- Dependency graphs, Tree-sitter parsing, complexity metrics, graph visualization, persistence, and historical snapshots are not implemented yet.
+- Saved projects do not store cached analysis snapshots.
+- Dependency graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
 - Git history depends on the local Git CLI and the repository's available history.
 
 ## Roadmap
@@ -141,7 +165,7 @@ The test suite creates and removes temporary fixture repositories under the oper
 - [ ] Add Git history and churn summaries.
 - [ ] Add TODO/FIXME, test, CI, and deployment-file discovery.
 - [ ] Add graph visualization for module relationships.
-- [ ] Decide whether persistence is justified.
+- [x] Add lightweight local persistence for saved project paths.
 
 ## License
 
