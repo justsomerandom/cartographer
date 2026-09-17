@@ -1,5 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
 import { analyzeRepository } from "@/server/analysis/repository/analyze";
 import { deleteSavedProject, getSavedProject, listSavedProjectsWithStatus, saveProject, touchSavedProject } from "@/lib/projects/projects";
 import type { RepositoryAnalysis } from "@/types/repository";
@@ -34,6 +37,29 @@ export async function repositoryDashboardAction(
   }
 
   return analyzePath(String(formData.get("repositoryPath") ?? ""), _previousState.savedProjects);
+}
+
+export async function saveProjectAndOpenAction(formData: FormData): Promise<void> {
+  const repositoryPath = String(formData.get("repositoryPath") ?? "");
+  const project = await saveProject(repositoryPath);
+
+  revalidatePath("/projects");
+  redirect(`/project/${project.id}/overview`);
+}
+
+export async function openSavedProjectAction(formData: FormData): Promise<void> {
+  const projectId = String(formData.get("projectId") ?? "");
+  const section = String(formData.get("section") ?? "overview");
+
+  redirect(`/project/${projectId}/${section}`);
+}
+
+export async function removeSavedProjectAction(formData: FormData): Promise<void> {
+  const projectId = String(formData.get("projectId") ?? "");
+  await deleteSavedProject(projectId);
+
+  revalidatePath("/projects");
+  redirect("/projects");
 }
 
 async function analyzePath(repositoryPath: string, savedProjects: SavedProjectWithStatus[]): Promise<AnalyzeRepositoryState> {

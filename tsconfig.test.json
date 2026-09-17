@@ -10,8 +10,10 @@
     "ignoreDeprecations": "6.0",
     "types": ["node"],
     "tsBuildInfoFile": ".tmp-test/tsconfig.test.tsbuildinfo",
-    "paths": {}
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/lib/**/*.ts", "src/server/**/*.ts", "src/types/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/components/dashboard/**/*.tsx", "src/lib/**/*.ts", "src/server/**/*.ts", "src/types/**/*.ts", "tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["node_modules", ".next", ".tmp-test"]
 }

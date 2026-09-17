@@ -11,7 +11,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Start with practical repository, package/module, file, and import/dependency analysis.
 - Avoid promising broad control-flow analysis before the analysis model supports it.
 
-## Current v0 Capabilities
+## Current v1 Capabilities
 
 - Analyze a local repository path through a Next.js App Router UI.
 - Save frequently analyzed local repository paths as projects for quick reopening.
@@ -26,6 +26,28 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Analyze source-level module/import relationships for TypeScript, JavaScript, Rust, Go, and Python.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
 - Preserve scan results as structured TypeScript data.
+
+## Navigation Model
+
+Cartographer uses a persistent app shell:
+
+- Sidebar: open a local repository, navigate saved projects, and see missing saved paths.
+- Repository header: active repository name, path, saved state, branch, Git state, and remove action for saved projects.
+- Section navigation: Overview, Files, Dependencies, Relationships, Git, and Project.
+
+Major sections are route-addressable:
+
+```text
+/projects
+/project/[id]/overview
+/project/[id]/files
+/project/[id]/dependencies
+/project/[id]/relationships
+/project/[id]/git
+/project/[id]/project
+```
+
+The Overview is intentionally selective. Detailed tables live in the dedicated section pages so the primary view stays scannable.
 
 ## Saved Projects
 
@@ -46,6 +68,8 @@ data/cartographer.db
 The `data/` directory is ignored by Git. Saved projects are references to repositories, not analysis snapshots. When you open a saved project, Cartographer analyzes the repository fresh using the current files and Git history.
 
 If a saved path is moved or deleted, Cartographer keeps the saved entry, marks it as unavailable, and lets you remove it manually.
+
+Opening a repository from the sidebar saves it idempotently and redirects to the saved project route. If the path was already saved, Cartographer reuses the existing saved project instead of creating a duplicate. When a project is already saved, the repository header shows `Saved` rather than another save action.
 
 ## Dependency Intelligence
 
@@ -178,7 +202,7 @@ Start the development server:
 npm run dev
 ```
 
-Then open the local Next.js URL and enter a repository path. Absolute and relative paths are supported. Relative paths are resolved from the Cartographer process working directory.
+Then open the local Next.js URL. Use `/projects` to open a local path or choose a saved project. Absolute and relative paths are supported. Relative paths are resolved from the Cartographer process working directory.
 
 Useful verification commands:
 
@@ -188,6 +212,8 @@ npm run lint
 npm test
 npm run build
 ```
+
+The test suite includes server-side analysis tests and lightweight component render tests for dashboard empty/status states.
 
 ## Read-Only Guarantee
 

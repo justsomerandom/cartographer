@@ -1,10 +1,5 @@
-import { RepositoryAnalyzer } from "@/components/RepositoryAnalyzer";
-import { listSavedProjectsWithStatus } from "@/lib/projects/projects";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const savedProjects = await listSavedProjectsWithStatus();
-
-  return <RepositoryAnalyzer initialSavedProjects={savedProjects} />;
+export default function Home() {
+  redirect("/projects");
 }

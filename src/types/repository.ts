@@ -335,6 +335,7 @@ export interface SourceRelationshipAnalysis {
 export interface RepositoryAnalysis {
   info: RepositoryInfo;
   files: FileSummary;
+  fileDetails: FileInfo[];
   languages: LanguageSummary[];
   git: GitSummary;
   metadata: ProjectMetadata;
