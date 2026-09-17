@@ -3,6 +3,8 @@
 /out/
 /dist/
 /coverage/
+/.tmp-test/
+tsconfig.tsbuildinfo
 .env
 .env.*
 !.env.example

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "jsx": "react-jsx",
+    "outDir": ".tmp-test",
+    "noEmit": false,
+    "incremental": false,
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
+    "tsBuildInfoFile": ".tmp-test/tsconfig.test.tsbuildinfo",
+    "paths": {}
+  },
+  "include": ["src/server/**/*.ts", "src/types/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", ".next", ".tmp-test"]
+}
