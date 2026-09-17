@@ -5,6 +5,7 @@ import {
   DependenciesSection,
   FilesSection,
   GitSection,
+  HotspotsSection,
   MissingProjectView,
   OverviewSection,
   ProjectSection,
@@ -15,7 +16,7 @@ import { analyzeRepository } from "@/server/analysis/repository/analyze";
 
 export const dynamic = "force-dynamic";
 
-const validSections = new Set<DashboardSection>(["overview", "files", "dependencies", "relationships", "git", "project"]);
+const validSections = new Set<DashboardSection>(["overview", "files", "dependencies", "relationships", "hotspots", "git", "project"]);
 
 export default async function ProjectSectionPage({
   params,
@@ -60,6 +61,10 @@ function renderSection(section: DashboardSection, analysis: Awaited<ReturnType<t
 
   if (section === "relationships") {
     return <RelationshipsSection sourceRelationships={analysis.sourceRelationships} />;
+  }
+
+  if (section === "hotspots") {
+    return <HotspotsSection hotspotAnalysis={analysis.hotspotAnalysis} />;
   }
 
   if (section === "git") {

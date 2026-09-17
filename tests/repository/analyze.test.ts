@@ -24,5 +24,7 @@ test("main analyzer returns a structured read-only repository analysis", async (
   assert.equal(analysis.files.totalFiles, 3);
   assert.ok(analysis.languages.some((language) => language.language === "TypeScript"));
   assert.equal(analysis.markers.byType.HACK, 1);
+  assert.equal(analysis.markers.files[0]?.path, "src/index.ts");
+  assert.ok(analysis.hotspotAnalysis.hotspots.some((hotspot) => hotspot.path === "src/index.ts"));
   assert.equal(analysis.metadata.manifests[0]?.path, "package.json");
 });

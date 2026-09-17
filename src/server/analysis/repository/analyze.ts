@@ -4,6 +4,7 @@ import type { GitSummary, MarkerSummary, ProjectMetadata, RepositoryAnalysis } f
 import { analyzeDependencies, emptyDependencyAnalysis } from "./dependencies/analyze";
 import { scanRepository, validateRepositoryPath } from "./files";
 import { gitErrorSummary, analyzeGit } from "./git";
+import { analyzeHotspots, emptyHotspotAnalysis } from "./hotspots/analyze";
 import { detectProjectMetadata } from "./metadata";
 import { analyzeSourceRelationships, emptySourceRelationshipAnalysis } from "./relationships/analyze";
 import { summarizeLanguages } from "./scan";
@@ -22,6 +23,13 @@ export async function analyzeRepository(inputPath: string): Promise<RepositoryAn
 
   const [git, dependencyAnalysis] = await Promise.all([gitPromise, dependencyAnalysisPromise]);
   const sourceRelationships = await analyzeSourceRelationships(canonicalPath, scan.files, dependencyAnalysis);
+  const hotspotAnalysis = analyzeHotspots({
+    files: scan.files,
+    git,
+    markers: scan.markers,
+    sourceRelationships,
+    dependencyAnalysis,
+  });
   const metadata = detectProjectMetadata(scan.files, scan.directories);
 
   return {
@@ -39,6 +47,7 @@ export async function analyzeRepository(inputPath: string): Promise<RepositoryAn
     metadata,
     dependencyAnalysis,
     sourceRelationships,
+    hotspotAnalysis,
     markers: scan.markers,
     errors: [...scan.errors, ...git.errors],
   };
@@ -66,6 +75,7 @@ function emptyAnalysis(inputPath: string, errors = [] as RepositoryAnalysis["err
     metadata: emptyMetadata(),
     dependencyAnalysis: emptyDependencyAnalysis(),
     sourceRelationships: emptySourceRelationshipAnalysis(),
+    hotspotAnalysis: emptyHotspotAnalysis(),
     markers: emptyMarkers(),
     errors,
   };
@@ -80,6 +90,7 @@ function emptyGitSummary(): GitSummary {
     contributors: [],
     recentCommits: [],
     hotFiles: [],
+    fileHistory: [],
     errors: [],
   };
 }
@@ -105,6 +116,7 @@ function emptyMarkers(): MarkerSummary {
       HACK: 0,
       XXX: 0,
     },
+    files: [],
     topFiles: [],
   };
 }

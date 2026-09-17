@@ -1,4 +1,4 @@
-import type { DependencyAnalysis, DetectedMetadataItem, RepositoryAnalysis, SourceRelationshipAnalysis } from "@/types/repository";
+import type { DependencyAnalysis, DetectedMetadataItem, FileHotspot, HotspotAnalysis, RepositoryAnalysis, SourceRelationshipAnalysis } from "@/types/repository";
 import { DataTable, EmptyState, KeyValue, MetricStrip, Panel, StatusBadge } from "./ui";
 
 export function ProjectsHome({ savedCount }: { savedCount: number }) {
@@ -28,6 +28,7 @@ export function MissingProjectView({ path }: { path: string }) {
 export function OverviewSection({ analysis }: { analysis: RepositoryAnalysis }) {
   const primaryLanguages = analysis.languages.slice(0, 4).map((language) => `${language.language} ${language.percentage.toFixed(1)}%`).join(", ") || "No source languages";
   const hotFile = analysis.git.hotFiles[0];
+  const topHotspot = analysis.hotspotAnalysis.hotspots[0];
 
   return (
     <div className="space-y-5">
@@ -56,7 +57,8 @@ export function OverviewSection({ analysis }: { analysis: RepositoryAnalysis }) 
           <div className="space-y-2">
             <KeyValue label="Unresolved imports" value={attentionText(analysis.sourceRelationships.summary.unresolvedImportCount)} />
             <KeyValue label="TODO/FIXME" value={(analysis.markers.byType.TODO + analysis.markers.byType.FIXME).toLocaleString()} />
-            <KeyValue label="Hot file" value={hotFile ? `${hotFile.path} (${hotFile.changeCount})` : "Unavailable"} />
+            <KeyValue label="Top hotspot" value={topHotspot ? `${topHotspot.path} (${topHotspot.score})` : "Unavailable"} />
+            <KeyValue label="Git hot file" value={hotFile ? `${hotFile.path} (${hotFile.changeCount})` : "Unavailable"} />
             <KeyValue label="Analysis notices" value={(analysis.errors.length + analysis.dependencyAnalysis.errors.length + analysis.sourceRelationships.errors.length).toLocaleString()} />
           </div>
         </Panel>
@@ -162,6 +164,74 @@ export function RelationshipsSection({ sourceRelationships }: { sourceRelationsh
   );
 }
 
+export function HotspotsSection({ hotspotAnalysis }: { hotspotAnalysis: HotspotAnalysis }) {
+  const topHotspot = hotspotAnalysis.hotspots[0];
+
+  return (
+    <div className="space-y-5">
+      <MetricStrip
+        metrics={[
+          { label: "Files analyzed", value: hotspotAnalysis.summary.filesAnalyzed.toLocaleString() },
+          { label: "Hotspots", value: hotspotAnalysis.summary.hotspotsSurfaced.toLocaleString(), tone: hotspotAnalysis.summary.hotspotsSurfaced > 0 ? "attention" : "neutral" },
+          { label: "In cycles", value: hotspotAnalysis.summary.filesInCycles.toLocaleString(), tone: hotspotAnalysis.summary.filesInCycles > 0 ? "attention" : "neutral" },
+          { label: "Recently active", value: hotspotAnalysis.summary.recentlyActiveHotspots.toLocaleString() },
+        ]}
+      />
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Hotspot summary">
+          <div className="space-y-2">
+            <KeyValue label="Highest score" value={topHotspot ? `${topHotspot.path} (${topHotspot.score})` : "Unavailable"} />
+            <KeyValue label="High churn" value={hotspotAnalysis.summary.highestChurnFile ?? "Unavailable"} />
+            <KeyValue label="Central module" value={hotspotAnalysis.summary.mostDependedOnModule ?? "Unavailable"} />
+            <KeyValue label="Marker-heavy" value={hotspotAnalysis.summary.markerHeaviestFile ?? "Unavailable"} />
+          </div>
+        </Panel>
+        <Panel title="Score model">
+          <div className="space-y-2">
+            <KeyValue label="Churn" value={formatPercent(hotspotAnalysis.weights.churn)} />
+            <KeyValue label="Centrality" value={formatPercent(hotspotAnalysis.weights.incomingCentrality)} />
+            <KeyValue label="Recent activity" value={formatPercent(hotspotAnalysis.weights.recentActivity)} />
+            <KeyValue label="Other signals" value="fan-out, size, marker density, cycles, contributors, and test naming" />
+          </div>
+        </Panel>
+      </div>
+      <Panel title="Ranked hotspots" description="Scores are repository-relative and combine normalized ranks with explicit structural and Git signals.">
+        <DataTable
+          headers={["Rank", "Path", "Score", "Signals", "Reasons"]}
+          rows={hotspotAnalysis.hotspots.map((hotspot) => [
+            hotspot.rank.toLocaleString(),
+            hotspot.path,
+            <StatusBadge key="score" tone={hotspot.severity === "high" ? "danger" : hotspot.severity === "elevated" ? "attention" : "neutral"}>
+              {hotspot.score}
+            </StatusBadge>,
+            strongestSignals(hotspot),
+            hotspot.reasons.map((reason) => reason.message).slice(0, 3).join(" "),
+          ])}
+          emptyText="No source hotspots were identified."
+        />
+      </Panel>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {hotspotAnalysis.categories.map((category) => (
+          <Panel key={category.id} title={category.label}>
+            <DataTable
+              headers={["Path", "Score"]}
+              rows={category.hotspots.map((hotspot) => [hotspot.path, hotspot.score.toLocaleString()])}
+              emptyText={`No ${category.label.toLowerCase()} files found.`}
+            />
+          </Panel>
+        ))}
+      </div>
+      <Panel title="Limitations">
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+          {hotspotAnalysis.limitations.map((limitation) => (
+            <li key={limitation}>{limitation}</li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
+  );
+}
+
 export function GitSection({ analysis }: { analysis: RepositoryAnalysis }) {
   return (
     <div className="space-y-5">
@@ -212,6 +282,31 @@ function MetadataPanel({ title, items }: { title: string; items: DetectedMetadat
 
 function attentionText(value: number): React.ReactNode {
   return value > 0 ? <StatusBadge tone="attention">{value.toLocaleString()}</StatusBadge> : value.toLocaleString();
+}
+
+function strongestSignals(hotspot: FileHotspot): string {
+  const signals = [
+    ["churn", hotspot.signals.churn],
+    ["recent", hotspot.signals.recentActivity],
+    ["central", hotspot.signals.incomingCentrality],
+    ["fan-out", hotspot.signals.outgoingCoupling],
+    ["size", hotspot.signals.size],
+    ["markers", hotspot.signals.markerDensity],
+    ["cycles", hotspot.signals.cycleMembership],
+    ["contributors", hotspot.signals.contributorSpread],
+    ["tests", hotspot.signals.testAwareness],
+  ] satisfies Array<[string, number]>;
+
+  return signals
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 4)
+    .map(([label, value]) => `${label} ${Math.round(value * 100)}%`)
+    .join(", ");
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function formatBytes(bytes: number): string {

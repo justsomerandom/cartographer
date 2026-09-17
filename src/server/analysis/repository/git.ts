@@ -1,4 +1,4 @@
-import type { GitCommit, GitContributor, GitHotFile, GitSummary } from "../../../types/repository";
+import type { GitCommit, GitContributor, GitFileHistory, GitSummary } from "../../../types/repository";
 import { runGit } from "../../git/commands";
 import { analysisError, errorDetail } from "./errors";
 
@@ -14,6 +14,7 @@ export async function analyzeGit(repositoryPath: string): Promise<GitSummary> {
     contributors: [],
     recentCommits: [],
     hotFiles: [],
+    fileHistory: [],
     errors: [],
   };
 
@@ -79,15 +80,16 @@ export async function analyzeGit(repositoryPath: string): Promise<GitSummary> {
     summary.totalCommits = Number.parseInt(commitCount.stdout.trim(), 10);
   }
 
-  const [contributors, recentCommits, hotFiles] = await Promise.all([
+  const [contributors, recentCommits, fileHistory] = await Promise.all([
     getContributors(repositoryPath),
     getRecentCommits(repositoryPath),
-    getHotFiles(repositoryPath),
+    getFileHistory(repositoryPath),
   ]);
 
   summary.contributors = contributors;
   summary.recentCommits = recentCommits;
-  summary.hotFiles = hotFiles;
+  summary.fileHistory = fileHistory;
+  summary.hotFiles = fileHistory.slice(0, 10).map((file) => ({ path: file.path, changeCount: file.touchCount }));
 
   return summary;
 }
@@ -141,26 +143,54 @@ async function getRecentCommits(repositoryPath: string): Promise<GitCommit[]> {
     .filter((commit): commit is GitCommit => Boolean(commit));
 }
 
-async function getHotFiles(repositoryPath: string): Promise<GitHotFile[]> {
-  const result = await runGit(["log", "--name-only", "--format=format:"], repositoryPath);
+async function getFileHistory(repositoryPath: string): Promise<GitFileHistory[]> {
+  const result = await runGit(["log", `--format=%aI${unitSeparator}%an`, "--name-only"], repositoryPath);
   if (!result.ok) {
     return [];
   }
 
-  const counts = new Map<string, number>();
+  const files = new Map<string, { touchCount: number; recentTouchCount: number; authors: Set<string>; latestTouchedAt?: string }>();
+  const recentCutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  let currentTimestamp: string | undefined;
+  let currentAuthor: string | undefined;
+
   for (const line of result.stdout.split(/\r?\n/)) {
-    const filePath = line.trim();
-    if (!filePath) {
+    const trimmed = line.trim();
+    if (!trimmed) {
       continue;
     }
 
-    counts.set(filePath, (counts.get(filePath) ?? 0) + 1);
+    if (trimmed.includes(unitSeparator)) {
+      const [timestamp, author] = trimmed.split(unitSeparator);
+      currentTimestamp = timestamp;
+      currentAuthor = author;
+      continue;
+    }
+
+    const filePath = trimmed;
+    const current = files.get(filePath) ?? { touchCount: 0, recentTouchCount: 0, authors: new Set<string>() };
+    current.touchCount += 1;
+    if (currentAuthor) {
+      current.authors.add(currentAuthor);
+    }
+    if (currentTimestamp && Date.parse(currentTimestamp) >= recentCutoff) {
+      current.recentTouchCount += 1;
+    }
+    if (!current.latestTouchedAt && currentTimestamp) {
+      current.latestTouchedAt = currentTimestamp;
+    }
+    files.set(filePath, current);
   }
 
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 10)
-    .map(([filePath, changeCount]) => ({ path: filePath, changeCount }));
+  return [...files.entries()]
+    .map(([filePath, history]) => ({
+      path: filePath,
+      touchCount: history.touchCount,
+      recentTouchCount: history.recentTouchCount,
+      authors: [...history.authors].sort(),
+      latestTouchedAt: history.latestTouchedAt,
+    }))
+    .sort((a, b) => b.touchCount - a.touchCount || a.path.localeCompare(b.path));
 }
 
 function parseCommit(record: string): GitCommit | undefined {
@@ -191,6 +221,7 @@ export function gitErrorSummary(error: unknown): GitSummary {
     contributors: [],
     recentCommits: [],
     hotFiles: [],
+    fileHistory: [],
     errors: [
       analysisError("GIT_COMMAND_FAILED", "Git analysis failed.", {
         detail: errorDetail(error),

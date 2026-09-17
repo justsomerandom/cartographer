@@ -80,6 +80,14 @@ export interface GitHotFile {
   changeCount: number;
 }
 
+export interface GitFileHistory {
+  path: string;
+  touchCount: number;
+  recentTouchCount: number;
+  authors: string[];
+  latestTouchedAt?: string;
+}
+
 export interface GitSummary {
   availability: GitAvailability;
   isRepository: boolean;
@@ -94,6 +102,7 @@ export interface GitSummary {
   contributors: GitContributor[];
   recentCommits: GitCommit[];
   hotFiles: GitHotFile[];
+  fileHistory: GitFileHistory[];
   errors: RepositoryAnalysisError[];
 }
 
@@ -122,6 +131,7 @@ export interface MarkerFileSummary {
 export interface MarkerSummary {
   total: number;
   byType: Record<MarkerType, number>;
+  files: MarkerFileSummary[];
   topFiles: MarkerFileSummary[];
 }
 
@@ -332,6 +342,92 @@ export interface SourceRelationshipAnalysis {
   errors: SourceRelationshipError[];
 }
 
+export type HotspotSignalKind =
+  | "churn"
+  | "recent-activity"
+  | "incoming-centrality"
+  | "outgoing-coupling"
+  | "size"
+  | "marker-density"
+  | "cycle-membership"
+  | "contributor-spread"
+  | "test-awareness";
+
+export type HotspotSeverity = "notable" | "elevated" | "high";
+
+export interface HotspotReason {
+  kind: HotspotSignalKind;
+  severity: HotspotSeverity;
+  message: string;
+  metric?: number;
+  percentile?: number;
+}
+
+export interface HotspotSignals {
+  churn: number;
+  recentActivity: number;
+  incomingCentrality: number;
+  outgoingCoupling: number;
+  size: number;
+  markerDensity: number;
+  cycleMembership: number;
+  contributorSpread: number;
+  testAwareness: number;
+}
+
+export interface HotspotMetrics {
+  touchCount?: number;
+  recentTouchCount?: number;
+  authorCount?: number;
+  bytes: number;
+  lineCount?: number;
+  markerCount: number;
+  markerDensity: number;
+  incomingCount: number;
+  outgoingCount: number;
+  inCycle: boolean;
+  isTestFile: boolean;
+  hasLikelyTest: boolean | null;
+}
+
+export interface FileHotspot {
+  rank: number;
+  path: string;
+  language?: string;
+  projectId?: string;
+  score: number;
+  severity: HotspotSeverity;
+  signals: HotspotSignals;
+  metrics: HotspotMetrics;
+  reasons: HotspotReason[];
+}
+
+export interface HotspotCategory {
+  id: HotspotSignalKind;
+  label: string;
+  hotspots: FileHotspot[];
+}
+
+export interface HotspotAnalysisSummary {
+  filesAnalyzed: number;
+  hotspotsSurfaced: number;
+  highestChurnFile?: string;
+  mostDependedOnModule?: string;
+  highestFanOutModule?: string;
+  largestSourceFile?: string;
+  markerHeaviestFile?: string;
+  filesInCycles: number;
+  recentlyActiveHotspots: number;
+}
+
+export interface HotspotAnalysis {
+  summary: HotspotAnalysisSummary;
+  hotspots: FileHotspot[];
+  categories: HotspotCategory[];
+  weights: HotspotSignals;
+  limitations: string[];
+}
+
 export interface RepositoryAnalysis {
   info: RepositoryInfo;
   files: FileSummary;
@@ -341,6 +437,7 @@ export interface RepositoryAnalysis {
   metadata: ProjectMetadata;
   dependencyAnalysis: DependencyAnalysis;
   sourceRelationships: SourceRelationshipAnalysis;
+  hotspotAnalysis: HotspotAnalysis;
   markers: MarkerSummary;
   errors: RepositoryAnalysisError[];
 }

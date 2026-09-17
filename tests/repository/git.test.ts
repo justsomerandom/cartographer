@@ -40,6 +40,8 @@ test("git analysis reads deterministic local repository history", async (t) => {
   assert.ok(summary.contributors.some((contributor) => contributor.name === "Cartographer Test" && contributor.commitCount === 2));
   assert.equal(summary.recentCommits.length, 2);
   assert.ok(summary.hotFiles.some((file) => file.path === "README.md" && file.changeCount === 2));
+  assert.ok(summary.fileHistory.some((file) => file.path === "README.md" && file.touchCount === 2 && file.authors.includes("Cartographer Test")));
+  assert.ok(summary.fileHistory.some((file) => file.path === "index.ts" && file.touchCount === 1 && file.recentTouchCount >= 1));
 });
 
 async function git(cwd: string, args: string[]): Promise<void> {

@@ -6,13 +6,14 @@ import type { RepositoryAnalysis } from "@/types/repository";
 import { RemoveProjectButton } from "./RemoveProjectButton";
 import { StatusBadge } from "./ui";
 
-export type DashboardSection = "overview" | "files" | "dependencies" | "relationships" | "git" | "project";
+export type DashboardSection = "overview" | "files" | "dependencies" | "relationships" | "hotspots" | "git" | "project";
 
 const sections: Array<{ id: DashboardSection; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "files", label: "Files" },
   { id: "dependencies", label: "Dependencies" },
   { id: "relationships", label: "Relationships" },
+  { id: "hotspots", label: "Hotspots" },
   { id: "git", label: "Git" },
   { id: "project", label: "Project" },
 ];

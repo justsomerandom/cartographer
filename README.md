@@ -24,6 +24,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Detect README, manifests, Docker files, CI, tests, environment examples, and licenses.
 - Analyze declared project manifests for Node.js, Rust, Go, and Python dependencies.
 - Analyze source-level module/import relationships for TypeScript, JavaScript, Rust, Go, and Python.
+- Rank engineering hotspots from Git churn, recent activity, structural centrality, fan-out, source size, marker density, cycle membership, contributor spread, and test-file naming signals.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
 - Preserve scan results as structured TypeScript data.
 
@@ -33,7 +34,7 @@ Cartographer uses a persistent app shell:
 
 - Sidebar: open a local repository, navigate saved projects, and see missing saved paths.
 - Repository header: active repository name, path, saved state, branch, Git state, and remove action for saved projects.
-- Section navigation: Overview, Files, Dependencies, Relationships, Git, and Project.
+- Section navigation: Overview, Files, Dependencies, Relationships, Hotspots, Git, and Project.
 
 Major sections are route-addressable:
 
@@ -43,6 +44,7 @@ Major sections are route-addressable:
 /project/[id]/files
 /project/[id]/dependencies
 /project/[id]/relationships
+/project/[id]/hotspots
 /project/[id]/git
 /project/[id]/project
 ```
@@ -115,6 +117,26 @@ Relationship analysis classifies imports as:
 
 The dashboard summarizes source modules, internal edges, external imports, unresolved imports, isolated modules, cross-project edges, most depended-on modules, highest fan-out modules, and cyclic groups. Cycles are detected with strongly connected components and reported as structural information, not automatically as bugs.
 
+## Engineering Hotspots
+
+Cartographer computes repository-relative hotspot scores for source files. A hotspot is a file that deserves engineering attention because several signals stack together; it is not automatically a bad file.
+
+Signals currently include:
+
+- Git churn from per-file commit touches.
+- Recent Git activity over the last 90 days.
+- Incoming relationship centrality for supported source imports.
+- Outgoing fan-out to supported local modules.
+- Source size.
+- TODO/FIXME/HACK/XXX marker density relative to file length.
+- Dependency cycle membership.
+- Contributor spread.
+- Test-awareness from common test naming conventions.
+
+Each numeric signal is normalized within the current repository by percentile/rank. Scores are reported on a 0-100 scale with visible component signals and human-readable reasons. The dedicated Hotspots page shows the ranked list, category slices such as high churn or cyclic modules, and model limitations. The Overview only surfaces the top hotspot so it stays scannable.
+
+Hotspot scoring is transparent but intentionally conservative. It does not prove runtime complexity, defect density, ownership problems, or test coverage. Git churn depends on local history and does not reconstruct renames.
+
 ## Planned Features
 
 - Add or select local repositories.
@@ -139,7 +161,7 @@ The architecture separates UI features from local repository analysis. React com
 analyzeRepository(path: string): Promise<RepositoryAnalysis>
 ```
 
-Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, manifest dependency analysis, source relationship analysis, and marker detection.
+Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, manifest dependency analysis, source relationship analysis, marker detection, and hotspot scoring.
 
 ```mermaid
 flowchart LR
@@ -149,6 +171,7 @@ flowchart LR
     Analysis --> Files[File System Scanner]
     Analysis --> Deps[Manifest Dependencies]
     Analysis --> Relations[Source Relationships]
+    Analysis --> Hotspots[Hotspot Scoring]
     Analysis --> Parsers[Parsers / Tree-sitter - planned]
     Analysis --> Graphs[Dependency Graph Model]
 ```
@@ -231,6 +254,8 @@ The test suite creates and removes temporary fixture repositories under the oper
 - Requirements parsing handles common declarations but is not a complete pip parser.
 - Source relationship analysis is structural and best-effort; it does not perform full compiler, type checker, package, or symbol resolution.
 - Rust, Go, and Python relationship resolution intentionally handle common layouts first and may leave ambiguous imports external or unresolved.
+- Hotspot scores are repository-relative heuristics and should be treated as attention signals, not defect predictions.
+- Test awareness uses filename/path conventions only and does not inspect assertions or runtime coverage.
 - Saved projects do not store cached analysis snapshots.
 - Symbol graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
 - Git history depends on the local Git CLI and the repository's available history.
@@ -242,9 +267,9 @@ The test suite creates and removes temporary fixture repositories under the oper
 - [ ] Add file-tree and language statistics analysis.
 - [x] Add manifest-level dependency extraction for initial ecosystems.
 - [x] Add source import/module relationship extraction.
-- [ ] Add engineering hotspot analysis from churn, centrality, size, markers, and tests.
-- [ ] Add Git history and churn summaries.
-- [ ] Add TODO/FIXME, test, CI, and deployment-file discovery.
+- [x] Add engineering hotspot analysis from churn, centrality, size, markers, and tests.
+- [x] Add Git history and churn summaries.
+- [x] Add TODO/FIXME, test, CI, and deployment-file discovery.
 - [ ] Add graph visualization for module relationships.
 - [x] Add lightweight local persistence for saved project paths.
 

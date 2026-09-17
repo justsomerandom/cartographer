@@ -5,6 +5,7 @@ import type {
   FileInfo,
   FileSummary,
   LargestFileInfo,
+  MarkerFileSummary,
   MarkerSummary,
   MarkerType,
   RepositoryAnalysisError,
@@ -233,13 +234,17 @@ export async function scanRepository(rootPath: string): Promise<RepositoryScan> 
     markers: {
       total: totalMarkers(markerCounts),
       byType: markerCounts,
-      topFiles: [...markerFiles.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .slice(0, 10)
-        .map(([filePath, count]) => ({ path: filePath, count })),
+      files: sortedMarkerFiles(markerFiles),
+      topFiles: sortedMarkerFiles(markerFiles).slice(0, 10),
     },
     errors,
   };
+}
+
+function sortedMarkerFiles(markerFiles: Map<string, number>): MarkerFileSummary[] {
+  return [...markerFiles.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([filePath, count]) => ({ path: filePath, count }));
 }
 
 export async function isTextFile(filePath: string): Promise<boolean> {
