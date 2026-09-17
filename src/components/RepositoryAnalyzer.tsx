@@ -4,7 +4,7 @@ import { useActionState } from "react";
 
 import { repositoryDashboardAction } from "@/app/actions";
 import type { SavedProjectWithStatus } from "@/types/projects";
-import type { DependencyAnalysis, DetectedMetadataItem, DetectedProject, RepositoryAnalysis } from "@/types/repository";
+import type { DependencyAnalysis, DetectedMetadataItem, DetectedProject, RepositoryAnalysis, SourceRelationshipAnalysis } from "@/types/repository";
 
 type FormAction = (formData: FormData) => void;
 
@@ -138,6 +138,8 @@ function AnalysisResult({ analysis, formAction, isPending }: { analysis: Reposit
       </DataSection>
 
       <DependencySection dependencyAnalysis={analysis.dependencyAnalysis} />
+
+      <RelationshipSection sourceRelationships={analysis.sourceRelationships} />
 
       <DataSection title="Largest files">
         <Table
@@ -340,6 +342,73 @@ function ProjectDependencyCard({ project }: { project: DetectedProject }) {
         </ul>
       ) : null}
     </section>
+  );
+}
+
+function RelationshipSection({ sourceRelationships }: { sourceRelationships: SourceRelationshipAnalysis }) {
+  const summary = sourceRelationships.summary;
+
+  return (
+    <DataSection title="Source relationships">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <InfoCard title="Graph summary">
+          <KeyValue label="Modules" value={summary.sourceModulesAnalyzed.toLocaleString()} />
+          <KeyValue label="Internal edges" value={summary.internalRelationshipCount.toLocaleString()} />
+          <KeyValue label="External imports" value={summary.externalImportCount.toLocaleString()} />
+          <KeyValue label="Unresolved" value={summary.unresolvedImportCount.toLocaleString()} />
+        </InfoCard>
+        <InfoCard title="Structure">
+          <KeyValue label="Isolated modules" value={summary.isolatedModuleCount.toLocaleString()} />
+          <KeyValue label="Cyclic groups" value={summary.cyclicGroupCount.toLocaleString()} />
+          <KeyValue label="Cross-project" value={summary.crossProjectRelationshipCount.toLocaleString()} />
+          <KeyValue label="Dynamic skipped" value={summary.unsupportedDynamicImportCount.toLocaleString()} />
+        </InfoCard>
+        <InfoCard title="References">
+          <KeyValue label="Imports found" value={sourceRelationships.importReferences.length.toLocaleString()} />
+          <KeyValue label="Relationships" value={sourceRelationships.relationships.length.toLocaleString()} />
+          <KeyValue label="Parser notices" value={sourceRelationships.errors.length.toLocaleString()} />
+        </InfoCard>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Table
+          headers={["Most depended-on module", "Incoming"]}
+          rows={summary.mostDependedOn.map((module) => [module.path, module.count.toLocaleString()])}
+          emptyText="No internal incoming relationships found."
+        />
+        <Table
+          headers={["Highest fan-out module", "Outgoing"]}
+          rows={summary.highestFanOut.map((module) => [module.path, module.count.toLocaleString()])}
+          emptyText="No internal outgoing relationships found."
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Table
+          headers={["Cycle group"]}
+          rows={sourceRelationships.cycles.slice(0, 10).map((cycle) => [cycle.modules.join(" -> ")])}
+          emptyText="No dependency cycles detected."
+        />
+        <Table
+          headers={["Source", "Import", "Status", "Reason"]}
+          rows={sourceRelationships.unresolvedImports.slice(0, 12).map((entry) => [entry.sourcePath, entry.importText, entry.status, entry.reason])}
+          emptyText="No external or unresolved imports to show."
+        />
+      </div>
+
+      {sourceRelationships.errors.length > 0 ? (
+        <section className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">Source analysis notices</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+            {sourceRelationships.errors.map((error) => (
+              <li key={`${error.language}-${error.path}`}>
+                {error.language} {error.path}: {error.message}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </DataSection>
   );
 }
 

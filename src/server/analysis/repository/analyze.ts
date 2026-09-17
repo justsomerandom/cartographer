@@ -5,6 +5,7 @@ import { analyzeDependencies, emptyDependencyAnalysis } from "./dependencies/ana
 import { scanRepository, validateRepositoryPath } from "./files";
 import { gitErrorSummary, analyzeGit } from "./git";
 import { detectProjectMetadata } from "./metadata";
+import { analyzeSourceRelationships, emptySourceRelationshipAnalysis } from "./relationships/analyze";
 import { summarizeLanguages } from "./scan";
 
 export async function analyzeRepository(inputPath: string): Promise<RepositoryAnalysis> {
@@ -20,6 +21,7 @@ export async function analyzeRepository(inputPath: string): Promise<RepositoryAn
   const dependencyAnalysisPromise = analyzeDependencies(canonicalPath, scan.files);
 
   const [git, dependencyAnalysis] = await Promise.all([gitPromise, dependencyAnalysisPromise]);
+  const sourceRelationships = await analyzeSourceRelationships(canonicalPath, scan.files, dependencyAnalysis);
   const metadata = detectProjectMetadata(scan.files, scan.directories);
 
   return {
@@ -35,6 +37,7 @@ export async function analyzeRepository(inputPath: string): Promise<RepositoryAn
     git,
     metadata,
     dependencyAnalysis,
+    sourceRelationships,
     markers: scan.markers,
     errors: [...scan.errors, ...git.errors],
   };
@@ -60,6 +63,7 @@ function emptyAnalysis(inputPath: string, errors = [] as RepositoryAnalysis["err
     git: emptyGitSummary(),
     metadata: emptyMetadata(),
     dependencyAnalysis: emptyDependencyAnalysis(),
+    sourceRelationships: emptySourceRelationshipAnalysis(),
     markers: emptyMarkers(),
     errors,
   };

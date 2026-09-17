@@ -23,6 +23,7 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Read Git status and history with the local Git CLI when available.
 - Detect README, manifests, Docker files, CI, tests, environment examples, and licenses.
 - Analyze declared project manifests for Node.js, Rust, Go, and Python dependencies.
+- Analyze source-level module/import relationships for TypeScript, JavaScript, Rust, Go, and Python.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
 - Preserve scan results as structured TypeScript data.
 
@@ -70,6 +71,26 @@ Current dependency intelligence includes:
 - repeated dependencies across manifests
 - differing declared version constraints without claiming compatibility or incompatibility
 
+## Source Relationship Analysis
+
+Cartographer builds a read-only structural relationship model from source files. This is file/module-level analysis, not compiler-grade semantic analysis.
+
+Supported source languages:
+
+- TypeScript and JavaScript: static imports, re-exports, `require("...")`, and string-literal dynamic imports
+- Rust: `mod` declarations and common `use crate::`, `use self::`, and `use super::` paths
+- Go: import declarations, including grouped imports
+- Python: `import`, `from ... import ...`, and relative imports
+
+Relationship analysis classifies imports as:
+
+- internal resolved relationships when Cartographer can confidently map an import to another local source file
+- external imports for package, standard-library, or third-party references
+- unresolved local-looking imports when a relative or alias path appears local but cannot be resolved
+- unsupported dynamic imports when a target is not statically knowable
+
+The dashboard summarizes source modules, internal edges, external imports, unresolved imports, isolated modules, cross-project edges, most depended-on modules, highest fan-out modules, and cyclic groups. Cycles are detected with strongly connected components and reported as structural information, not automatically as bugs.
+
 ## Planned Features
 
 - Add or select local repositories.
@@ -94,7 +115,7 @@ The architecture separates UI features from local repository analysis. React com
 analyzeRepository(path: string): Promise<RepositoryAnalysis>
 ```
 
-Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, manifest dependency analysis, and marker detection.
+Server-side modules inspect Git repositories, scan files, collect facts, and provide structured data to React views. Initial analysis moves from repository validation to filesystem scanning, language summaries, Git summaries, metadata detection, manifest dependency analysis, source relationship analysis, and marker detection.
 
 ```mermaid
 flowchart LR
@@ -103,6 +124,7 @@ flowchart LR
     Analysis --> Git[Git Metadata]
     Analysis --> Files[File System Scanner]
     Analysis --> Deps[Manifest Dependencies]
+    Analysis --> Relations[Source Relationships]
     Analysis --> Parsers[Parsers / Tree-sitter - planned]
     Analysis --> Graphs[Dependency Graph Model]
 ```
@@ -169,7 +191,7 @@ npm run build
 
 ## Read-Only Guarantee
 
-Cartographer is read-only with respect to analyzed repositories. It does not write files, install dependencies, format code, check out branches, alter Git state, run package managers, or otherwise mutate the repository being inspected. It only reads filesystem metadata, text content within size safeguards, Git CLI output, and declared manifest files.
+Cartographer is read-only with respect to analyzed repositories. It does not write files, install dependencies, format code, check out branches, alter Git state, run package managers, run compilers, or otherwise mutate the repository being inspected. It only reads filesystem metadata, text content within size safeguards, Git CLI output, declared manifest files, and source files.
 
 The saved-projects feature writes only to Cartographer's own local SQLite database under `data/`. It never writes inside analyzed repositories.
 
@@ -181,8 +203,10 @@ The test suite creates and removes temporary fixture repositories under the oper
 - Line counts are approximate and skip very large text files.
 - Dependency analysis is manifest-level only and does not resolve transitive dependencies.
 - Requirements parsing handles common declarations but is not a complete pip parser.
+- Source relationship analysis is structural and best-effort; it does not perform full compiler, type checker, package, or symbol resolution.
+- Rust, Go, and Python relationship resolution intentionally handle common layouts first and may leave ambiguous imports external or unresolved.
 - Saved projects do not store cached analysis snapshots.
-- Source import graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
+- Symbol graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
 - Git history depends on the local Git CLI and the repository's available history.
 
 ## Roadmap
@@ -191,7 +215,8 @@ The test suite creates and removes temporary fixture repositories under the oper
 - [ ] Build local repository selection and metadata extraction.
 - [ ] Add file-tree and language statistics analysis.
 - [x] Add manifest-level dependency extraction for initial ecosystems.
-- [ ] Add source import/module relationship extraction.
+- [x] Add source import/module relationship extraction.
+- [ ] Add engineering hotspot analysis from churn, centrality, size, markers, and tests.
 - [ ] Add Git history and churn summaries.
 - [ ] Add TODO/FIXME, test, CI, and deployment-file discovery.
 - [ ] Add graph visualization for module relationships.

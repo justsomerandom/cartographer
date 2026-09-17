@@ -237,6 +237,101 @@ export interface DependencyAnalysis {
   errors: ManifestAnalysisError[];
 }
 
+export type SourceLanguage = "typescript" | "javascript" | "rust" | "go" | "python";
+
+export type ImportKind =
+  | "static-import"
+  | "require"
+  | "dynamic-import"
+  | "re-export"
+  | "rust-mod"
+  | "rust-use"
+  | "go-import"
+  | "python-import"
+  | "python-from-import";
+
+export type ImportResolutionStatus = "internal" | "external" | "unresolved-local" | "unsupported-dynamic";
+
+export interface SourceModule {
+  path: string;
+  language: SourceLanguage;
+  projectId?: string;
+  incomingCount: number;
+  outgoingCount: number;
+  externalImportCount: number;
+  unresolvedImportCount: number;
+}
+
+export interface ImportReference {
+  sourcePath: string;
+  language: SourceLanguage;
+  importText: string;
+  kind: ImportKind;
+  line?: number;
+}
+
+export interface ResolvedRelationship {
+  sourcePath: string;
+  targetPath?: string;
+  importText: string;
+  kind: ImportKind;
+  status: ImportResolutionStatus;
+  language: SourceLanguage;
+  sourceProjectId?: string;
+  targetProjectId?: string;
+  crossProject: boolean;
+  reason?: string;
+}
+
+export interface UnresolvedImport {
+  sourcePath: string;
+  language: SourceLanguage;
+  importText: string;
+  kind: ImportKind;
+  status: Exclude<ImportResolutionStatus, "internal">;
+  reason: string;
+}
+
+export interface DependencyCycle {
+  modules: string[];
+}
+
+export interface ModuleDegree {
+  path: string;
+  language: SourceLanguage;
+  count: number;
+  projectId?: string;
+}
+
+export interface SourceRelationshipError {
+  path: string;
+  language: SourceLanguage;
+  message: string;
+}
+
+export interface RelationshipSummary {
+  sourceModulesAnalyzed: number;
+  internalRelationshipCount: number;
+  externalImportCount: number;
+  unresolvedImportCount: number;
+  unsupportedDynamicImportCount: number;
+  isolatedModuleCount: number;
+  cyclicGroupCount: number;
+  crossProjectRelationshipCount: number;
+  mostDependedOn: ModuleDegree[];
+  highestFanOut: ModuleDegree[];
+}
+
+export interface SourceRelationshipAnalysis {
+  modules: SourceModule[];
+  relationships: ResolvedRelationship[];
+  importReferences: ImportReference[];
+  unresolvedImports: UnresolvedImport[];
+  cycles: DependencyCycle[];
+  summary: RelationshipSummary;
+  errors: SourceRelationshipError[];
+}
+
 export interface RepositoryAnalysis {
   info: RepositoryInfo;
   files: FileSummary;
@@ -244,6 +339,7 @@ export interface RepositoryAnalysis {
   git: GitSummary;
   metadata: ProjectMetadata;
   dependencyAnalysis: DependencyAnalysis;
+  sourceRelationships: SourceRelationshipAnalysis;
   markers: MarkerSummary;
   errors: RepositoryAnalysisError[];
 }
