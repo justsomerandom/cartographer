@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
 import type { DependencyAnalysis, DetectedMetadataItem, FileHotspot, HotspotAnalysis, RepositoryAnalysis, SourceRelationshipAnalysis } from "@/types/repository";
+import { RepositoryExplorer } from "../../features/explorer/RepositoryExplorer";
+import { RelationshipsWorkspace } from "../../features/graphs/RelationshipsWorkspace";
+import { ActivityTrend, ArchitectureSummary, ContributorDistribution, LanguageComposition } from "./visualizations";
 import { DataTable, DetailPanel, EmptyState, KeyValue, MetricGroup, Panel, SectionHeader, SignalBar, StatusBadge, Toolbar, VisualizationPanel } from "./ui";
 
 export function ProjectsHome({ savedCount }: { savedCount: number }) {
@@ -90,6 +93,7 @@ export function OverviewSection({ analysis }: { analysis: RepositoryAnalysis }) 
           { label: "Projects", value: analysis.dependencyAnalysis.summary.projectCount.toLocaleString() },
           { label: "Direct deps", value: analysis.dependencyAnalysis.summary.totalDirectDependencies.toLocaleString() },
           { label: "Internal edges", value: analysis.sourceRelationships.summary.internalRelationshipCount.toLocaleString() },
+          { label: "TODO / FIXME", value: analysis.markers.total.toLocaleString(), tone: analysis.markers.total > 0 ? "attention" : "neutral" },
         ]}
       />
 
@@ -97,29 +101,29 @@ export function OverviewSection({ analysis }: { analysis: RepositoryAnalysis }) 
         {/* Question: What is this repository made of? Visualization: language/technology composition. Data: RepositoryAnalysis.languages and dependencyAnalysis.summary. */}
         <VisualizationPanel
           title="Repository composition"
-          description="Reserved for a compact language and technology composition view using stable visualization category colors."
+          description="Language share by approximate source lines."
           height="small"
           legend={<span>Current summary: {primaryLanguages}</span>}
         >
-          Composition visualization planned for languages and detected technologies.
+          <LanguageComposition languages={analysis.languages} />
         </VisualizationPanel>
         {/* Question: How active is this repository? Visualization: commit/churn sparkline. Data: GitSummary recent commits and file history. */}
         <VisualizationPanel
           title="Engineering activity"
-          description="Reserved for a time-oriented activity view that distinguishes commits, churn, and contributor activity."
+          description="Recent commits grouped by authored day from locally available history."
           height="small"
           legend={<span>Current summary: {analysis.git.totalCommits?.toLocaleString() ?? "unknown"} commits in available history.</span>}
         >
-          Activity visualization planned for Git history and file churn.
+          <ActivityTrend git={analysis.git} />
         </VisualizationPanel>
         {/* Question: How connected is the codebase? Visualization: compact module relationship overview. Data: SourceRelationshipAnalysis. */}
         <VisualizationPanel
           title="Architecture"
-          description="Reserved for a structural overview of modules, edges, cycles, and unresolved local imports."
+          description="Connected and isolated source modules, with structural attention signals."
           height="small"
           legend={<span>{analysis.sourceRelationships.summary.sourceModulesAnalyzed.toLocaleString()} modules analyzed.</span>}
         >
-          Architecture visualization planned for source relationships.
+          <ArchitectureSummary relationships={analysis.sourceRelationships} />
         </VisualizationPanel>
       </div>
 
@@ -145,23 +149,9 @@ export function OverviewSection({ analysis }: { analysis: RepositoryAnalysis }) 
 }
 
 export function FilesSection({ analysis }: { analysis: RepositoryAnalysis }) {
-  const markerByPath = new Map(analysis.markers.topFiles.map((entry) => [entry.path, entry.count]));
-  const rows = [...analysis.fileDetails]
-    .sort((a, b) => b.bytes - a.bytes || a.path.localeCompare(b.path))
-    .slice(0, 250)
-    .map((file) => [
-      <span key="path" className="font-mono text-xs">
-        {file.path}
-      </span>,
-      file.language ?? "Unknown",
-      formatBytes(file.bytes),
-      (file.lineCount ?? 0).toLocaleString(),
-      (markerByPath.get(file.path) ?? 0).toLocaleString(),
-    ]);
-
   return (
     <div className="space-y-6">
-      <SectionHeader eyebrow="Files" title="File inventory and source footprint" description="Largest scanned files with source-language, size, line, and marker context." />
+      <SectionHeader eyebrow="Files" title="Repository explorer" description="Browse the directory hierarchy and inspect source details, Git churn, markers, and supported module references." />
       <MetricGroup
         metrics={[
           { label: "Total files", value: analysis.files.totalFiles.toLocaleString(), primary: true },
@@ -171,9 +161,7 @@ export function FilesSection({ analysis }: { analysis: RepositoryAnalysis }) {
           { label: "Bytes", value: formatBytes(analysis.files.totalBytes) },
         ]}
       />
-      <Panel title="Largest scanned files" description="Build, dependency, cache, IDE, and Git directories are ignored.">
-        <DataTable headers={["Path", "Language", "Size", "Lines", "Markers"]} rows={rows} numericColumns={[2, 3, 4]} emptyText="No files were found for this repository." />
-      </Panel>
+      <RepositoryExplorer files={analysis.fileDetails} markers={analysis.markers} gitHistory={analysis.git.fileHistory} relationships={analysis.sourceRelationships} />
     </div>
   );
 }
@@ -243,12 +231,6 @@ export function DependenciesSection({ dependencyAnalysis }: { dependencyAnalysis
 }
 
 export function RelationshipsSection({ sourceRelationships }: { sourceRelationships: SourceRelationshipAnalysis }) {
-  const selected = sourceRelationships.summary.highestFanOut[0]?.path ?? sourceRelationships.modules[0]?.path;
-  const dependencies = sourceRelationships.relationships.filter((relationship) => relationship.status === "internal" && relationship.sourcePath === selected);
-  const dependents = sourceRelationships.relationships.filter((relationship) => relationship.status === "internal" && relationship.targetPath === selected);
-  const external = sourceRelationships.unresolvedImports.filter((entry) => entry.sourcePath === selected && entry.status === "external");
-  const unresolved = sourceRelationships.unresolvedImports.filter((entry) => entry.sourcePath === selected && entry.status !== "external");
-
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -266,30 +248,9 @@ export function RelationshipsSection({ sourceRelationships }: { sourceRelationsh
         ]}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
-        {/* Question: How is this project structurally connected? Visualization: interactive network graph. Data: SourceRelationshipAnalysis.relationships, modules, cycles. */}
-        <VisualizationPanel
-          title="Architecture graph"
-          description="Reserved for an interactive module graph with pan, zoom, search, filters, neighbor highlighting, and selected-node details."
-          height="large"
-          legend={<span>Nodes: source modules. Edges: resolved internal imports. Cycle membership and unresolved imports will be encoded separately from semantic errors.</span>}
-        >
-          Graph canvas planned for supported source relationships.
-        </VisualizationPanel>
-        <DetailPanel title="Selected module">
-          {selected ? (
-            <div className="space-y-2">
-              <KeyValue label="Path" value={<span className="font-mono text-xs">{selected}</span>} />
-              <KeyValue label="Depends on" value={dependencies.length.toLocaleString()} />
-              <KeyValue label="Depended on by" value={dependents.length.toLocaleString()} />
-              <KeyValue label="External imports" value={external.length.toLocaleString()} />
-              <KeyValue label="Unresolved" value={unresolved.length.toLocaleString()} />
-            </div>
-          ) : (
-            <EmptyState title="No supported source files">Supported source files include TypeScript, JavaScript, Rust, Go, and Python.</EmptyState>
-          )}
-        </DetailPanel>
-      </div>
+      <Panel title="Architecture graph" description="Pan and zoom the bounded module graph, search and filter it, then select a node to inspect its relationships.">
+        <RelationshipsWorkspace sourceRelationships={sourceRelationships} />
+      </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Most depended-on">
@@ -407,15 +368,10 @@ export function GitSection({ analysis }: { analysis: RepositoryAnalysis }) {
         ]}
       />
 
-      {/* Question: How has work changed over time? Visualization: time-series chart. Data: GitSummary.recentCommits and fileHistory. */}
-      <VisualizationPanel
-        title="Commit and churn timeline"
-        description="Reserved for a wide time-series visualization of commits, file touches, and contributor activity."
-        height="standard"
-        legend={<span>Time-series charts need horizontal room, so this region intentionally spans the page.</span>}
-      >
-        Timeline visualization planned for Git activity and churn history.
-      </VisualizationPanel>
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <VisualizationPanel title="Recent commit activity" description="Recent authored commits grouped by day." height="small"><ActivityTrend git={analysis.git} /></VisualizationPanel>
+        <Panel title="Contributor distribution" description="Share of commits in locally available history."><ContributorDistribution git={analysis.git} /></Panel>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
         <Panel title="Recent commits">

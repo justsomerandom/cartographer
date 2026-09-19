@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { HotspotsSection, ProjectsHome, MissingProjectView } from "../../src/components/dashboard/sections";
 import { DataTable, MetricStrip, StatusBadge, VisualizationPanel } from "../../src/components/dashboard/ui";
+import { RepositoryExplorer } from "../../src/features/explorer/RepositoryExplorer";
 
 test("dashboard empty state explains saved projects", () => {
   const html = renderToStaticMarkup(<ProjectsHome savedCount={0} />);
@@ -111,4 +112,11 @@ test("hotspots section renders ranked hotspot explanations", () => {
   assert.match(html, /Ranked hotspots/);
   assert.match(html, /src\/core.ts/);
   assert.match(html, /dependency cycle/);
+});
+
+test("repository explorer renders a navigable path and file inspection prompt", () => {
+  const html = renderToStaticMarkup(<RepositoryExplorer files={[{ path: "src/app.ts", bytes: 42, isBinary: false, isText: true, isSource: true, language: "TypeScript", lineCount: 3 }]} markers={{ total: 0, byType: { TODO: 0, FIXME: 0, HACK: 0, XXX: 0 }, files: [], topFiles: [] }} gitHistory={[]} relationships={{ modules: [], relationships: [], importReferences: [], unresolvedImports: [], cycles: [], errors: [], summary: { sourceModulesAnalyzed: 0, internalRelationshipCount: 0, externalImportCount: 0, unresolvedImportCount: 0, unsupportedDynamicImportCount: 0, isolatedModuleCount: 0, cyclicGroupCount: 0, crossProjectRelationshipCount: 0, mostDependedOn: [], highestFanOut: [] } }} />);
+  assert.match(html, /src/);
+  assert.match(html, /app.ts/);
+  assert.match(html, /Select a file to inspect/);
 });
