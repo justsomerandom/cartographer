@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Background, Controls, MiniMap, ReactFlow, type Edge, type Node, type NodeMouseHandler, useReactFlow } from "@xyflow/react";
+import { Background, Controls, MiniMap, ReactFlow, type Edge, type Node, type NodeMouseHandler } from "@xyflow/react";
 
 import { buildGraphModel, defaultGraphFilters, graphNeighbors, type GraphFilters } from "./graph-model";
 import type { SourceRelationshipAnalysis } from "@/types/repository";

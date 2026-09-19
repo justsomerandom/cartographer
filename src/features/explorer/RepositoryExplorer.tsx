@@ -13,7 +13,7 @@ export function RepositoryExplorer({ files, markers, gitHistory, relationships }
   const selected = files.find((file) => file.path === selectedPath);
   const history = new Map(gitHistory.map((entry) => [entry.path, entry]));
   const markerCount = new Map(markers.files.map((entry) => [entry.path, entry.count]));
-  const module = relationships.modules.find((entry) => entry.path === selectedPath);
+  const moduleInfo = relationships.modules.find((entry) => entry.path === selectedPath);
   const outgoing = relationships.relationships.filter((entry) => entry.status === "internal" && entry.sourcePath === selectedPath);
   const incoming = relationships.relationships.filter((entry) => entry.status === "internal" && entry.targetPath === selectedPath);
   return <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -23,7 +23,7 @@ export function RepositoryExplorer({ files, markers, gitHistory, relationships }
     </section>
     <aside className="rounded border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
       {selected ? <div className="space-y-3"><h3 className="break-all font-mono text-sm font-semibold">{selected.path}</h3><Facts facts={[
-        ["Language", selected.language ?? "Unknown"], ["Size", formatBytes(selected.bytes)], ["Lines", selected.lineCount?.toLocaleString() ?? "Not counted"], ["Git touches", history.get(selected.path)?.touchCount.toLocaleString() ?? "No history"], ["Recent touches", history.get(selected.path)?.recentTouchCount.toLocaleString() ?? "0"], ["Hotspot score", "Not ranked in explorer"], ["Markers", (markerCount.get(selected.path) ?? 0).toLocaleString()], ["Incoming refs", module?.incomingCount.toLocaleString() ?? "0"], ["Outgoing refs", module?.outgoingCount.toLocaleString() ?? "0"],
+        ["Language", selected.language ?? "Unknown"], ["Size", formatBytes(selected.bytes)], ["Lines", selected.lineCount?.toLocaleString() ?? "Not counted"], ["Git touches", history.get(selected.path)?.touchCount.toLocaleString() ?? "No history"], ["Recent touches", history.get(selected.path)?.recentTouchCount.toLocaleString() ?? "0"], ["Hotspot score", "Not ranked in explorer"], ["Markers", (markerCount.get(selected.path) ?? 0).toLocaleString()], ["Incoming refs", moduleInfo?.incomingCount.toLocaleString() ?? "0"], ["Outgoing refs", moduleInfo?.outgoingCount.toLocaleString() ?? "0"],
       ]} />
       {outgoing.length > 0 ? <PathList title="Imports" paths={outgoing.map((entry) => entry.targetPath as string)} /> : null}
       {incoming.length > 0 ? <PathList title="Referenced by" paths={incoming.map((entry) => entry.sourcePath)} /> : null}
