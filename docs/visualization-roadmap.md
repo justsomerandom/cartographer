@@ -1,6 +1,6 @@
 # Cartographer Visualization Roadmap
 
-Visualization regions are layout commitments for future analytical work. They should be populated only with real repository data and clear interaction models.
+Visualization regions are populated only with real repository data and clear interaction models. The remaining roadmap items below are deliberately scoped to available analysis data.
 
 ## Overview: Repository Composition
 
@@ -10,7 +10,7 @@ Visualization regions are layout commitments for future analytical work. They sh
 - Semantics: language share by lines/bytes, technology categories by detected evidence.
 - Color: stable categorical chart colors; TypeScript/JavaScript should keep consistent hues across views where practical.
 - Interactions: hover detail, click to filter Files or Dependencies later.
-- Priority: medium.
+- Status: implemented as a compact language-by-lines bar view.
 
 ## Overview/Git: Engineering Activity
 
@@ -20,7 +20,7 @@ Visualization regions are layout commitments for future analytical work. They sh
 - Semantics: commits over time, file touches, contributor count.
 - Color: cyan for commits, slate for supporting history, amber overlays for unusually high churn.
 - Interactions: range selection and link to Git detail later.
-- Priority: medium.
+- Status: implemented as a recent-commit daily bar view using locally available recent commits.
 
 ## Overview/Relationships: Architecture Summary
 
@@ -30,7 +30,7 @@ Visualization regions are layout commitments for future analytical work. They sh
 - Semantics: modules, internal edges, unresolved imports, cyclic groups.
 - Color: neutral graph base, cyan selected elements, amber cycle overlays.
 - Interactions: link to Relationships page.
-- Priority: medium.
+- Status: implemented as a connected/isolated module summary with structural counts.
 
 ## Dependencies: Dependency And Workspace Map
 
@@ -64,7 +64,7 @@ Visualization regions are layout commitments for future analytical work. They sh
 - Overlays: cycle membership, marker density, test-awareness flag.
 - Color: neutral-to-cyan intensity for score; amber outline for cycle/attention overlays.
 - Interactions: hover reason summary, select hotspot, filter by category.
-- Priority: high.
+- Status: implemented with React Flow. It supports pan/zoom, fit-to-view, minimap, node selection, neighbor emphasis, module search, language/project/cycle/cross-project filters, cycle borders, and animated cross-project edges. Rendering is capped at 250 matching modules, selected by structural degree, with an explicit omission message.
 
 ## Git: Commit And Churn Timeline
 

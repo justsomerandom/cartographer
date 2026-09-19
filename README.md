@@ -26,7 +26,10 @@ This is an early v0 foundation. It favors accurate, transparent repository facts
 - Analyze source-level module/import relationships for TypeScript, JavaScript, Rust, Go, and Python.
 - Rank engineering hotspots from Git churn, recent activity, structural centrality, fan-out, source size, marker density, cycle membership, contributor spread, and test-file naming signals.
 - Count TODO, FIXME, HACK, and XXX markers in recognized source files.
-- Use a documented dashboard design system with semantic colors, compact density, and reserved visualization regions.
+- Use a documented dashboard design system with semantic colors, compact density, and accessible analytical visualizations.
+- Explore files in a directory hierarchy with file size, language, lines, Git touches, markers, and supported incoming/outgoing references.
+- Inspect a bounded interactive source relationship graph with pan, zoom, fit-to-view, minimap, search, language/project/cycle filters, cross-project edge cues, and selected-module details.
+- View language composition, recent commit activity, architecture connectivity, and contributor distribution from available local data.
 - Preserve scan results as structured TypeScript data.
 
 ## Navigation Model
@@ -52,7 +55,7 @@ Major sections are route-addressable:
 
 The Overview is intentionally selective. Detailed tables live in the dedicated section pages so the primary view stays scannable.
 
-The visual system is documented in [`docs/design-system.md`](docs/design-system.md). Planned chart and graph regions are documented in [`docs/visualization-roadmap.md`](docs/visualization-roadmap.md).
+The visual system is documented in [`docs/design-system.md`](docs/design-system.md). Visualization behavior and data boundaries are documented in [`docs/visualization-roadmap.md`](docs/visualization-roadmap.md).
 
 ## Saved Projects
 
@@ -205,7 +208,7 @@ flowchart LR
 - better-sqlite3 - local saved-project persistence.
 - smol-toml - static TOML parsing for Cargo and Python manifests.
 - Tree-sitter - planned source parsing where useful.
-- Graph visualization library - planned later.
+- React Flow (`@xyflow/react`) - interactive module relationship graph.
 - SQLite - local saved-project references.
 
 ## Development
@@ -260,7 +263,8 @@ The test suite creates and removes temporary fixture repositories under the oper
 - Hotspot scores are repository-relative heuristics and should be treated as attention signals, not defect predictions.
 - Test awareness uses filename/path conventions only and does not inspect assertions or runtime coverage.
 - Saved projects do not store cached analysis snapshots.
-- Symbol graphs, Tree-sitter parsing, complexity metrics, graph visualization, analysis snapshot persistence, and historical snapshots are not implemented yet.
+- Symbol graphs, Tree-sitter parsing, complexity metrics, analysis snapshot persistence, and historical snapshots are not implemented yet.
+- The relationship graph is intentionally capped at 250 matching modules. It ranks matching modules by structural degree and reports omitted matches; use search and filters for larger repositories.
 - Git history depends on the local Git CLI and the repository's available history.
 
 ## Roadmap
@@ -273,7 +277,7 @@ The test suite creates and removes temporary fixture repositories under the oper
 - [x] Add engineering hotspot analysis from churn, centrality, size, markers, and tests.
 - [x] Add Git history and churn summaries.
 - [x] Add TODO/FIXME, test, CI, and deployment-file discovery.
-- [ ] Add graph visualization for module relationships.
+- [x] Add bounded interactive graph visualization for module relationships.
 - [x] Add lightweight local persistence for saved project paths.
 
 ## License
