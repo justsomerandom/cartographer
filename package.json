@@ -14,6 +14,7 @@
     "test": "tsc -p tsconfig.test.json && node -e \"require('fs').writeFileSync('.tmp-test/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\" && node --test \".tmp-test/tests/**/*.test.js\""
   },
   "dependencies": {
+    "@xyflow/react": "^12.11.6",
     "better-sqlite3": "^13.0.3",
     "next": "^16.3.5",
     "react": "^19.3.0",
