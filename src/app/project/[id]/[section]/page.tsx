@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { AppShell, type DashboardSection } from "@/components/dashboard/AppShell";
+import { RepositoryLoadingState } from "@/components/dashboard/RepositoryLoadingState";
 import {
   DependenciesSection,
   FilesSection,
@@ -38,16 +40,59 @@ export default async function ProjectSectionPage({
     notFound();
   }
 
-  const analysis = await analyzeRepository(savedProject.path);
-  if (analysis.info.canonicalPath) {
-    await touchSavedProject(savedProject.id);
+  const analysisPromise = analyzeRepository(savedProject.path);
+
+  return (
+    <AppShell
+      savedProjects={savedProjects}
+      activeProjectId={id}
+      activeSection={section}
+      repositoryDetails={
+        <Suspense fallback={<RepositoryLoadingState compact />}>
+          <RepositoryHeaderDetails analysisPromise={analysisPromise} />
+        </Suspense>
+      }
+    >
+      <Suspense fallback={<RepositoryLoadingState />}>
+        <RepositoryAnalysisContent analysisPromise={analysisPromise} projectId={savedProject.id} projectPath={savedProject.path} section={section} />
+      </Suspense>
+    </AppShell>
+  );
+}
+
+async function RepositoryHeaderDetails({ analysisPromise }: { analysisPromise: Promise<Awaited<ReturnType<typeof analyzeRepository>>> }) {
+  const analysis = await analysisPromise;
+
+  if (!analysis.info.canonicalPath) {
+    return null;
   }
 
   return (
-    <AppShell savedProjects={savedProjects} activeProjectId={id} activeSection={section} analysis={analysis.info.canonicalPath ? analysis : undefined}>
-      {analysis.info.canonicalPath ? renderSection(section, analysis) : <MissingProjectView path={savedProject.path} />}
-    </AppShell>
+    <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
+      <span>Branch <span className="font-mono text-[var(--color-text-secondary)]">{analysis.git.branch ?? (analysis.git.detachedHead ? "detached HEAD" : "unavailable")}</span></span>
+      <span aria-hidden="true">/</span>
+      <span>Analysis complete</span>
+    </div>
   );
+}
+
+async function RepositoryAnalysisContent({
+  analysisPromise,
+  projectId,
+  projectPath,
+  section,
+}: {
+  analysisPromise: Promise<Awaited<ReturnType<typeof analyzeRepository>>>;
+  projectId: string;
+  projectPath: string;
+  section: DashboardSection;
+}) {
+  const analysis = await analysisPromise;
+  if (analysis.info.canonicalPath) {
+    await touchSavedProject(projectId);
+  }
+
+  return analysis.info.canonicalPath ? renderSection(section, analysis) : <MissingProjectView path={projectPath} />;
 }
 
 function renderSection(section: DashboardSection, analysis: Awaited<ReturnType<typeof analyzeRepository>>) {

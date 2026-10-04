@@ -79,6 +79,8 @@ If a saved path is moved or deleted, Cartographer keeps the saved entry, marks i
 
 Opening a repository from the sidebar saves it idempotently and redirects to the saved project route. If the path was already saved, Cartographer reuses the existing saved project instead of creating a duplicate. When a project is already saved, the repository header shows `Saved` rather than another save action.
 
+Repository pages stream the workspace shell and an accessible analysis state while the local scan runs. File inspection is bounded-concurrent so large trees do not serialize every filesystem read; results appear automatically once the structured analysis is complete.
+
 ## Dependency Intelligence
 
 Cartographer analyzes dependency data from declared manifests only. It does not install packages, run package managers, contact registries, or resolve transitive dependency graphs.

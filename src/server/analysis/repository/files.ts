@@ -31,6 +31,7 @@ const ignoredDirectoryNames = new Set([
 const markerTypes: MarkerType[] = ["TODO", "FIXME", "HACK", "XXX"];
 const binarySampleBytes = 4096;
 const maxTextScanBytes = 5 * 1024 * 1024;
+const scanConcurrency = 16;
 
 export interface ValidatedRepositoryPath {
   inputPath: string;
@@ -137,7 +138,7 @@ export async function scanRepository(rootPath: string): Promise<RepositoryScan> 
   const markerFiles = new Map<string, number>();
   let directoryCount = 0;
 
-  async function walk(currentPath: string): Promise<void> {
+  async function inspectDirectory(currentPath: string): Promise<void> {
     let entries: Array<{
       name: string;
       isDirectory(): boolean;
@@ -167,7 +168,7 @@ export async function scanRepository(rootPath: string): Promise<RepositoryScan> 
 
         directoryCount += 1;
         directories.push(relativePath);
-        await walk(absoluteEntryPath);
+        enqueue(() => inspectDirectory(absoluteEntryPath));
         continue;
       }
 
@@ -175,46 +176,86 @@ export async function scanRepository(rootPath: string): Promise<RepositoryScan> 
         continue;
       }
 
-      try {
-        const stats = await fs.lstat(absoluteEntryPath);
-        if (stats.isSymbolicLink()) {
-          continue;
-        }
-
-        const language = detectLanguage(relativePath);
-        const textInfo = await inspectTextFile(absoluteEntryPath, stats.size);
-        const isSource = textInfo.isText && isRecognizedSourceLanguage(language);
-        const markerInfo = isSource ? countMarkers(textInfo.contentForMarkers) : emptyMarkerCounts();
-        const markerTotal = totalMarkers(markerInfo);
-
-        if (markerTotal > 0) {
-          markerFiles.set(relativePath, markerTotal);
-          for (const marker of markerTypes) {
-            markerCounts[marker] += markerInfo[marker];
-          }
-        }
-
-        files.push({
-          path: relativePath,
-          bytes: stats.size,
-          isBinary: !textInfo.isText,
-          isText: textInfo.isText,
-          isSource,
-          language,
-          lineCount: textInfo.lineCount,
-        });
-      } catch (error: unknown) {
-        errors.push(
-          analysisError("FILESYSTEM_ERROR", "A file could not be inspected.", {
-            path: absoluteEntryPath,
-            detail: errorDetail(error),
-          }),
-        );
-      }
+      enqueue(() => inspectFile(absoluteEntryPath, relativePath));
     }
   }
 
-  await walk(rootPath);
+  async function inspectFile(absoluteEntryPath: string, relativePath: string): Promise<void> {
+    try {
+      const stats = await fs.lstat(absoluteEntryPath);
+      if (stats.isSymbolicLink()) {
+        return;
+      }
+
+      const language = detectLanguage(relativePath);
+      const textInfo = await inspectTextFile(absoluteEntryPath, stats.size);
+      const isSource = textInfo.isText && isRecognizedSourceLanguage(language);
+      const markerInfo = isSource ? countMarkers(textInfo.contentForMarkers) : emptyMarkerCounts();
+      const markerTotal = totalMarkers(markerInfo);
+
+      if (markerTotal > 0) {
+        markerFiles.set(relativePath, markerTotal);
+        for (const marker of markerTypes) {
+          markerCounts[marker] += markerInfo[marker];
+        }
+      }
+
+      files.push({
+        path: relativePath,
+        bytes: stats.size,
+        isBinary: !textInfo.isText,
+        isText: textInfo.isText,
+        isSource,
+        language,
+        lineCount: textInfo.lineCount,
+      });
+    } catch (error: unknown) {
+      errors.push(
+        analysisError("FILESYSTEM_ERROR", "A file could not be inspected.", {
+          path: absoluteEntryPath,
+          detail: errorDetail(error),
+        }),
+      );
+    }
+  }
+
+  const queue: Array<() => Promise<void>> = [];
+  let activeJobs = 0;
+  let finished = false;
+  let resolveComplete: () => void;
+  const complete = new Promise<void>((resolve) => {
+    resolveComplete = resolve;
+  });
+
+  function enqueue(job: () => Promise<void>): void {
+    queue.push(job);
+    runJobs();
+  }
+
+  function runJobs(): void {
+    while (activeJobs < scanConcurrency && queue.length > 0) {
+      const job = queue.shift();
+      if (!job) {
+        return;
+      }
+
+      activeJobs += 1;
+      void job().finally(() => {
+        activeJobs -= 1;
+        runJobs();
+        if (!finished && activeJobs === 0 && queue.length === 0) {
+          finished = true;
+          resolveComplete();
+        }
+      });
+    }
+  }
+
+  enqueue(() => inspectDirectory(rootPath));
+  await complete;
+
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  directories.sort((a, b) => a.localeCompare(b));
 
   const summary: FileSummary = {
     totalFiles: files.length,

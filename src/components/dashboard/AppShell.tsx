@@ -23,12 +23,14 @@ export function AppShell({
   activeProjectId,
   activeSection,
   analysis,
+  repositoryDetails,
   children,
 }: {
   savedProjects: SavedProjectWithStatus[];
   activeProjectId?: string;
   activeSection?: DashboardSection;
   analysis?: RepositoryAnalysis;
+  repositoryDetails?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const activeProject = savedProjects.find((project) => project.id === activeProjectId);
@@ -142,6 +144,7 @@ export function AppShell({
                   <span>Analyzed {formatDate(analysis.info.analyzedAt)}</span>
                 </div>
               ) : null}
+              {repositoryDetails}
             </div>
             {activeProject ? (
               <form action={removeSavedProjectAction}>

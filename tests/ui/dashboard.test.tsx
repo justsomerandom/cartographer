@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { HotspotsSection, ProjectsHome, MissingProjectView } from "../../src/components/dashboard/sections";
 import { DataTable, MetricStrip, StatusBadge, VisualizationPanel } from "../../src/components/dashboard/ui";
 import { RepositoryExplorer } from "../../src/features/explorer/RepositoryExplorer";
+import { RepositoryLoadingState } from "../../src/components/dashboard/RepositoryLoadingState";
 
 test("dashboard empty state explains saved projects", () => {
   const html = renderToStaticMarkup(<ProjectsHome savedCount={0} />);
@@ -48,6 +49,15 @@ test("visualization panel supports empty and loading states", () => {
   assert.match(emptyHtml, /Architecture graph/);
   assert.match(emptyHtml, /Graph canvas planned/);
   assert.match(loadingHtml, /aria-label="Loading"/);
+});
+
+test("repository loading state keeps longer analysis accessible and informative", () => {
+  const html = renderToStaticMarkup(<RepositoryLoadingState />);
+
+  assert.match(html, /role="status"/);
+  assert.match(html, /aria-live="polite"/);
+  assert.match(html, /Collecting repository details/);
+  assert.match(html, /update automatically/);
 });
 
 test("hotspots section renders ranked hotspot explanations", () => {
